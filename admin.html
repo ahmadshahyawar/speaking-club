@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speaking Club - Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        h2 {
+            color: #764ba2;
+            margin: 30px 0 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        input[type="file"] {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            width: 100%;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .btn-danger {
+            background: #e74c3c;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        .btn-success {
+            background: #27ae60;
+        }
+        .btn-success:hover {
+            background: #229954;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .page-item {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .success-msg {
+            background: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Speaking Club - Admin Panel</h1>
+        
+        <div class="success-msg" id="successMsg">Data saved successfully!</div>
+        
+        <div class="section">
+            <h2>📹 Background Video</h2>
+            <div class="form-group">
+                <label>Video URL (YouTube embed or direct link):</label>
+                <input type="text" id="videoUrl" placeholder="https://www.youtube.com/embed/VIDEO_ID or video.mp4">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📚 Vocabulary Table</h2>
+            <div class="grid-3">
+                <div class="form-group">
+                    <label>English:</label>
+                    <input type="text" id="wordEn" placeholder="Hello">
+                </div>
+                <div class="form-group">
+                    <label>Russian:</label>
+                    <input type="text" id="wordRu" placeholder="Привет">
+                </div>
+                <div class="form-group">
+                    <label>Kazakh:</label>
+                    <input type="text" id="wordKz" placeholder="Сәлем">
+                </div>
+            </div>
+            <button onclick="addWord()">➕ Add Word</button>
+            
+            <table id="wordsTable">
+                <thead>
+                    <tr>
+                        <th>English</th>
+                        <th>Русский</th>
+                        <th>Қазақша</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="wordsBody"></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>📄 Question Pages</h2>
+            <div class="form-group">
+                <label>Question 1 (English):</label>
+                <textarea id="q1En" rows="2" placeholder="What is your name?"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Translation 1 (Russian/Kazakh):</label>
+                <textarea id="q1Tr" rows="2" placeholder="Как вас зовут? / Атыңыз кім?"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Question 2 (English):</label>
+                <textarea id="q2En" rows="2" placeholder="Where are you from?"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Translation 2 (Russian/Kazakh):</label>
+                <textarea id="q2Tr" rows="2" placeholder="Откуда вы? / Қайдансыз?"></textarea>
+            </div>
+            <button onclick="addPage()">➕ Add Page</button>
+            
+            <div id="pagesContainer"></div>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn-success" onclick="saveAll()">💾 Save All Changes</button>
+            <button onclick="window.open('/display', '_blank')">👁️ Open Display Page</button>
+        </div>
+    </div>
+
+    <script>
+        let data = {words: [], pages: [], current_video: ''};
+
+        async function loadData() {
+            const res = await fetch('/api/data');
+            data = await res.json();
+            document.getElementById('videoUrl').value = data.current_video || '';
+            renderWords();
+            renderPages();
+        }
+
+        function renderWords() {
+            const tbody = document.getElementById('wordsBody');
+            tbody.innerHTML = '';
+            data.words.forEach((word, i) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${word.en}</td>
+                        <td>${word.ru}</td>
+                        <td>${word.kz}</td>
+                        <td><button class="btn-danger" onclick="deleteWord(${i})">🗑️</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function addWord() {
+            const en = document.getElementById('wordEn').value.trim();
+            const ru = document.getElementById('wordRu').value.trim();
+            const kz = document.getElementById('wordKz').value.trim();
+            
+            if (en && ru && kz) {
+                data.words.push({en, ru, kz});
+                renderWords();
+                document.getElementById('wordEn').value = '';
+                document.getElementById('wordRu').value = '';
+                document.getElementById('wordKz').value = '';
+            }
+        }
+
+        function deleteWord(i) {
+            data.words.splice(i, 1);
+            renderWords();
+        }
+
+        function renderPages() {
+            const container = document.getElementById('pagesContainer');
+            container.innerHTML = '';
+            data.pages.forEach((page, i) => {
+                container.innerHTML += `
+                    <div class="page-item">
+                        <h3>Page ${i + 1}</h3>
+                        <p><strong>Q1:</strong> ${page.q1_en}</p>
+                        <p><strong>T1:</strong> ${page.q1_tr}</p>
+                        <p><strong>Q2:</strong> ${page.q2_en}</p>
+                        <p><strong>T2:</strong> ${page.q2_tr}</p>
+                        <button class="btn-danger" onclick="deletePage(${i})">🗑️ Delete Page</button>
+                    </div>
+                `;
+            });
+        }
+
+        function addPage() {
+            const q1_en = document.getElementById('q1En').value.trim();
+            const q1_tr = document.getElementById('q1Tr').value.trim();
+            const q2_en = document.getElementById('q2En').value.trim();
+            const q2_tr = document.getElementById('q2Tr').value.trim();
+            
+            if (q1_en && q1_tr && q2_en && q2_tr) {
+                data.pages.push({q1_en, q1_tr, q2_en, q2_tr});
+                renderPages();
+                document.getElementById('q1En').value = '';
+                document.getElementById('q1Tr').value = '';
+                document.getElementById('q2En').value = '';
+                document.getElementById('q2Tr').value = '';
+            }
+        }
+
+        function deletePage(i) {
+            data.pages.splice(i, 1);
+            renderPages();
+        }
+
+        async function saveAll() {
+            data.current_video = document.getElementById('videoUrl').value.trim();
+            
+            const res = await fetch('/api/save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            
+            const msg = document.getElementById('successMsg');
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 3000);
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
