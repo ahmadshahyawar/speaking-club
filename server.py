@@ -2,22 +2,19 @@ import http.server
 import socketserver
 import json
 import os
-import hashlib
-import secrets
 from urllib.parse import parse_qs, urlparse
-from http.cookies import SimpleCookie
 
-PORT = int(os.environ.get('PORT', 8000))
+PORT = 8000
 DATA_FILE = 'speaking_data.json'
 LESSONS_FILE = 'lessons.json'
-SESSIONS_FILE = 'sessions.json'
-
-# CHANGE THIS PASSWORD! - Default is "admin123"
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', "admin123")  # Change this to your desired password
 
 # Initialize data files
 if not os.path.exists(DATA_FILE):
-    initial_data = {'words': [], 'pages': [], 'current_video': ''}
+    initial_data = {
+        'words': [],
+        'pages': [],
+        'current_video': ''
+    }
     with open(DATA_FILE, 'w', encoding='utf-8') as f:
         json.dump(initial_data, f, ensure_ascii=False)
 
@@ -25,150 +22,37 @@ if not os.path.exists(LESSONS_FILE):
     with open(LESSONS_FILE, 'w', encoding='utf-8') as f:
         json.dump({}, f, ensure_ascii=False)
 
-if not os.path.exists(SESSIONS_FILE):
-    with open(SESSIONS_FILE, 'w', encoding='utf-8') as f:
-        json.dump({}, f, ensure_ascii=False)
-
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def load_sessions():
-    try:
-        with open(SESSIONS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        return {}
-
-def save_sessions(sessions):
-    with open(SESSIONS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(sessions, f, ensure_ascii=False)
-
-def create_session():
-    session_id = secrets.token_urlsafe(32)
-    sessions = load_sessions()
-    sessions[session_id] = True
-    save_sessions(sessions)
-    return session_id
-
-def is_authenticated(cookie_header):
-    if not cookie_header:
-        return False
-    
-    cookie = SimpleCookie()
-    cookie.load(cookie_header)
-    
-    if 'session_id' not in cookie:
-        return False
-    
-    session_id = cookie['session_id'].value
-    sessions = load_sessions()
-    return session_id in sessions
-
 class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
-        # Public display page - no auth required
-        if self.path == '/display':
+        if self.path == '/' or self.path == '/admin':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(self.get_admin_html().encode('utf-8'))
+            return
+        elif self.path == '/display':
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             self.wfile.write(self.get_display_html().encode('utf-8'))
             return
-        
-        # Public API for display page
-        if self.path == '/api/data':
+        elif self.path == '/api/data':
             self.send_response(200)
             self.send_header('Content-type', 'application/json; charset=utf-8')
             self.end_headers()
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
                 self.wfile.write(f.read().encode('utf-8'))
             return
-        
-        # Login page
-        if self.path == '/' or self.path == '/login':
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(self.get_login_html().encode('utf-8'))
-            return
-        
-        # Protected admin panel
-        if self.path == '/admin':
-            cookie_header = self.headers.get('Cookie')
-            if not is_authenticated(cookie_header):
-                self.send_response(302)
-                self.send_header('Location', '/login')
-                self.end_headers()
-                return
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(self.get_admin_html().encode('utf-8'))
-            return
-        
-        # Protected API endpoints
-        if self.path == '/api/lessons':
-            cookie_header = self.headers.get('Cookie')
-            if not is_authenticated(cookie_header):
-                self.send_response(401)
-                self.end_headers()
-                return
-            
+        elif self.path == '/api/lessons':
             self.send_response(200)
             self.send_header('Content-type', 'application/json; charset=utf-8')
             self.end_headers()
             with open(LESSONS_FILE, 'r', encoding='utf-8') as f:
                 self.wfile.write(f.read().encode('utf-8'))
             return
-        
-        if self.path == '/logout':
-            cookie_header = self.headers.get('Cookie')
-            if cookie_header:
-                cookie = SimpleCookie()
-                cookie.load(cookie_header)
-                if 'session_id' in cookie:
-                    session_id = cookie['session_id'].value
-                    sessions = load_sessions()
-                    if session_id in sessions:
-                        del sessions[session_id]
-                        save_sessions(sessions)
-            
-            self.send_response(302)
-            self.send_header('Location', '/login')
-            self.send_header('Set-Cookie', 'session_id=; Max-Age=0; Path=/')
-            self.end_headers()
-            return
-        
         return super().do_GET()
     
     def do_POST(self):
-        # Login authentication
-        if self.path == '/api/login':
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            data = json.loads(post_data.decode('utf-8'))
-            
-            if data.get('password') == ADMIN_PASSWORD:
-                session_id = create_session()
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.send_header('Set-Cookie', f'session_id={session_id}; Path=/; HttpOnly; Max-Age=86400')
-                self.end_headers()
-                self.wfile.write(json.dumps({'status': 'success'}).encode())
-            else:
-                self.send_response(401)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({'status': 'error', 'message': 'Invalid password'}).encode())
-            return
-        
-        # All other POST endpoints require authentication
-        cookie_header = self.headers.get('Cookie')
-        if not is_authenticated(cookie_header):
-            self.send_response(401)
-            self.end_headers()
-            return
-        
         if self.path == '/api/save':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
@@ -182,7 +66,6 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({'status': 'success'}).encode())
             return
-        
         elif self.path == '/api/save_lesson':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
@@ -201,7 +84,6 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({'status': 'success'}).encode())
             return
-        
         elif self.path == '/api/delete_lesson':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
@@ -225,130 +107,6 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(404)
         self.end_headers()
     
-    def get_login_html(self):
-        return '''<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Speaking Club - Login</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .login-container {
-            background: white;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 400px;
-        }
-        h1 {
-            color: #667eea;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #333;
-        }
-        input[type="password"] {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-        input[type="password"]:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        button {
-            width: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 14px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: transform 0.2s;
-        }
-        button:hover {
-            transform: translateY(-2px);
-        }
-        .error-msg {
-            background: #e74c3c;
-            color: white;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-            text-align: center;
-        }
-        .info-text {
-            text-align: center;
-            color: #666;
-            margin-top: 20px;
-            font-size: 14px;
-        }
-    </style>
-</head>
-<body>
-    <div class="login-container">
-        <h1>🔐 Admin Login</h1>
-        <div class="error-msg" id="errorMsg">Invalid password</div>
-        <form onsubmit="handleLogin(event)">
-            <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" placeholder="Enter admin password" required autofocus>
-            </div>
-            <button type="submit">Login</button>
-        </form>
-        <div class="info-text">
-            Students can access the <a href="/display" style="color: #667eea;">display page</a> without login
-        </div>
-    </div>
-
-    <script>
-        async function handleLogin(e) {
-            e.preventDefault();
-            const password = document.getElementById('password').value;
-            
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({password})
-            });
-            
-            if (res.ok) {
-                window.location.href = '/admin';
-            } else {
-                document.getElementById('errorMsg').style.display = 'block';
-                document.getElementById('password').value = '';
-                setTimeout(() => {
-                    document.getElementById('errorMsg').style.display = 'none';
-                }, 3000);
-            }
-        }
-    </script>
-</body>
-</html>'''
-    
     def get_admin_html(self):
         return '''<!DOCTYPE html>
 <html lang="en">
@@ -360,10 +118,7 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; min-height: 100vh; }
         .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        h1 { color: #667eea; }
-        .logout-btn { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; }
-        .logout-btn:hover { background: #c0392b; }
+        h1 { color: #667eea; margin-bottom: 30px; text-align: center; }
         h2 { color: #764ba2; margin: 30px 0 15px; padding-bottom: 10px; border-bottom: 2px solid #667eea; }
         .section { margin-bottom: 40px; }
         .form-group { margin-bottom: 15px; }
@@ -393,11 +148,7 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🎯 Speaking Club - Admin Panel</h1>
-            <button class="logout-btn" onclick="logout()">🚪 Logout</button>
-        </div>
-        
+        <h1>🎯 Speaking Club - Admin Panel</h1>
         <div class="success-msg" id="successMsg">Changes saved successfully!</div>
         
         <div class="lesson-management">
@@ -410,14 +161,14 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
                 <input type="text" id="lessonName" placeholder="e.g., Lesson 1 - Family">
             </div>
             <button class="btn-success" onclick="saveLesson()">💾 Save as Lesson</button>
-            <button class="btn-info" onclick="newLesson()">🔄 New Lesson</button>
+            <button class="btn-info" onclick="newLesson()">📄 New Lesson</button>
             
             <h3 style="margin-top: 20px; margin-bottom: 10px;">Saved Lessons:</h3>
             <div id="lessonsList"></div>
         </div>
         
         <div class="section">
-            <h2>🎬 Background Video</h2>
+            <h2>📹 Background Video</h2>
             <div class="form-group">
                 <label>Video URL (YouTube or direct link):</label>
                 <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=VIDEO_ID or video.mp4">
@@ -428,7 +179,8 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
             <h2>📚 Vocabulary Table</h2>
             <div class="form-group">
                 <label>Quick Import (format: english / russian / kazakh):</label>
-                <textarea id="bulkWords" rows="5" placeholder="family / семья / отбасы&#10;parents / родители / ата-аналар"></textarea>
+                <textarea id="bulkWords" rows="5" placeholder="family / семья / отбасы
+parents / родители / ата-аналар"></textarea>
                 <button onclick="importWords()">📥 Import All Words</button>
             </div>
             
@@ -460,7 +212,8 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
             <h2>📄 Question Pages</h2>
             <div class="form-group">
                 <label>Quick Import (format: question / translation - two per page):</label>
-                <textarea id="bulkQuestions" rows="5" placeholder="Who is in your family? / Кто в вашей семье? / Отбасыңызда кімдер бар?&#10;How many people? / Сколько человек? / Қанша адам?"></textarea>
+                <textarea id="bulkQuestions" rows="5" placeholder="Who is in your family? / Кто в вашей семье? / Отбасыңызда кімдер бар?
+How many people? / Сколько человек? / Қанша адам?"></textarea>
                 <button onclick="importQuestions()">📥 Import Questions</button>
             </div>
             
@@ -506,10 +259,8 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
 
         async function loadLessons() {
             const res = await fetch('/api/lessons');
-            if (res.ok) {
-                lessons = await res.json();
-                renderLessonsList();
-            }
+            lessons = await res.json();
+            renderLessonsList();
         }
 
         function renderLessonsList() {
@@ -625,7 +376,7 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
             const bulk = document.getElementById('bulkWords').value.trim();
             if (!bulk) return;
             
-            const lines = bulk.split('\n');
+            const lines = bulk.split('\\n');
             lines.forEach(line => {
                 const parts = line.split('/').map(p => p.trim());
                 if (parts.length >= 3 && parts[0] && parts[1] && parts[2]) {
@@ -669,7 +420,7 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
             const bulk = document.getElementById('bulkQuestions').value.trim();
             if (!bulk) return;
             
-            const lines = bulk.split('\n').filter(l => l.trim());
+            const lines = bulk.split('\\n').filter(l => l.trim());
             for (let i = 0; i < lines.length; i += 2) {
                 if (i + 1 < lines.length) {
                     const q1_parts = lines[i].split('/').map(p => p.trim());
@@ -710,10 +461,6 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
             setTimeout(() => msgEl.style.display = 'none', 3000);
         }
 
-        function logout() {
-            window.location.href = '/logout';
-        }
-
         loadData();
     </script>
 </body>
@@ -730,7 +477,8 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; background: #000; overflow-y: auto; }
         #videoBackground { position: fixed; top: 50%; left: 50%; min-width: 100%; min-height: 100%; width: auto; height: auto; transform: translate(-50%, -50%); z-index: 1; }
-        #videoBackground.youtube {position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh;transform: translate(-50%, -50%);object-fit: cover; border: none;pointer-events: auto;}
+       #videoBackground.youtube {position: fixed; top: 50%; left: 50%; width: 100vw; height: 100vh;transform: translate(-50%, -50%);object-fit: cover; border: none;pointer-events: auto;}
+
         .content-overlay { position: relative; z-index: 2; width: 100%; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 40px 20px; pointer-events: none; gap: 20px; }
         .content-box { background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); padding: 25px; border-radius: 15px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.2); pointer-events: auto; color: white; animation: fadeIn 0.8s ease-in; max-width: 700px; width: 100%; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -839,14 +587,9 @@ class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
 </body>
 </html>'''
 
-print(f"🚀 Server starting on port {PORT}")
-print(f"🔐 Login page: /login")
-print(f"📋 Admin panel: /admin (requires login)")
-print(f"📺 Display page: /display (public)")
-print(f"")
-print(f"⚠️  IMPORTANT: Change the password!")
-print(f"📝 Set ADMIN_PASSWORD environment variable or edit the code")
-print(f"")
+print(f"🚀 Server starting on http://localhost:{PORT}")
+print(f"📋 Admin panel: http://localhost:{PORT}/")
+print(f"📺 Display page: http://localhost:{PORT}/display")
 print(f"✨ Press Ctrl+C to stop the server")
 
 with socketserver.TCPServer(("", PORT), SpeakingClubHandler) as httpd:
