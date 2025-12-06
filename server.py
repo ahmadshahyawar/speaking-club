@@ -4,6 +4,7 @@ import json
 import os
 from urllib.parse import parse_qs, urlparse
 
+PASSWORD = "Hahsdamha"
 PORT = 8000
 DATA_FILE = 'speaking_data.json'
 LESSONS_FILE = 'lessons.json'
@@ -24,7 +25,32 @@ if not os.path.exists(LESSONS_FILE):
 
 class SpeakingClubHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
+        
         if self.path == '/' or self.path == '/admin':
+            # Check for password in query string
+            query = urlparse(self.path).query
+            params = parse_qs(query)
+            password = params.get('password', [''])[0]
+            
+            if password != PASSWORD:
+                # Show login page
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.end_headers()
+                login_html = '''<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Login</title>
+<style>body{font-family:Arial;display:flex;justify-content:center;align-items:center;height:100vh;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);}
+.login-box{background:white;padding:40px;border-radius:15px;box-shadow:0 10px 40px rgba(0,0,0,0.3);}
+input{padding:10px;font-size:16px;border:2px solid #ddd;border-radius:5px;width:250px;}
+button{background:#667eea;color:white;border:none;padding:12px 30px;border-radius:5px;cursor:pointer;font-size:16px;margin-top:10px;}
+button:hover{background:#5568d3;}</style></head><body>
+<div class="login-box"><h2 style="margin-bottom:20px;">🔒 Admin Login</h2>
+<form method="GET" action="/"><input type="password" name="password" placeholder="Enter password" required>
+<button type="submit">Login</button></form></div></body></html>'''
+                self.wfile.write(login_html.encode('utf-8'))
+                return
+            
+            # Password correct, show admin panel
             self.send_response(200)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
