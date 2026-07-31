@@ -7,12 +7,12 @@ const STORAGE_KEYS = {
     lessons: 'speakingClub.lessons'
 };
 
-const DEFAULT_DATA = { words: [], pages: [], current_video: '' };
+const EMPTY_DATA = { words: [], pages: [], current_video: '' };
 
-const Storage = {
+const ClubStorage = {
     getData() {
         const raw = localStorage.getItem(STORAGE_KEYS.data);
-        return raw ? JSON.parse(raw) : { ...DEFAULT_DATA };
+        return raw ? JSON.parse(raw) : { ...EMPTY_DATA };
     },
 
     saveData(data) {
@@ -26,14 +26,14 @@ const Storage = {
     },
 
     saveLesson(lessonName, lessonData) {
-        const lessons = Storage.getLessons();
+        const lessons = ClubStorage.getLessons();
         lessons[lessonName] = lessonData;
         localStorage.setItem(STORAGE_KEYS.lessons, JSON.stringify(lessons));
         return { status: 'success' };
     },
 
     deleteLesson(lessonName) {
-        const lessons = Storage.getLessons();
+        const lessons = ClubStorage.getLessons();
         delete lessons[lessonName];
         localStorage.setItem(STORAGE_KEYS.lessons, JSON.stringify(lessons));
         return { status: 'success' };

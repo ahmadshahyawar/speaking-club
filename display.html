@@ -47,8 +47,8 @@
         let currentPage = 0;
 
         function loadData() {
-            Storage.seedIfEmpty(DEFAULT_DATA, DEFAULT_LESSONS);
-            data = Storage.getData();
+            ClubStorage.seedIfEmpty(DEFAULT_DATA, DEFAULT_LESSONS);
+            data = ClubStorage.getData();
             setupVideo();
             renderPage();
         }

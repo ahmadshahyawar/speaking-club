@@ -141,8 +141,8 @@ How many people? / Сколько человек? / Қанша адам?"></text
         let lessons = {};
 
         function loadData() {
-            Storage.seedIfEmpty(DEFAULT_DATA, DEFAULT_LESSONS);
-            data = Storage.getData();
+            ClubStorage.seedIfEmpty(DEFAULT_DATA, DEFAULT_LESSONS);
+            data = ClubStorage.getData();
             document.getElementById('videoUrl').value = data.current_video || '';
             renderWords();
             renderPages();
@@ -150,7 +150,7 @@ How many people? / Сколько человек? / Қанша адам?"></text
         }
 
         function loadLessons() {
-            lessons = Storage.getLessons();
+            lessons = ClubStorage.getLessons();
             renderLessonsList();
         }
 
@@ -198,7 +198,7 @@ How many people? / Сколько человек? / Қанша адам?"></text
 
             data.current_video = document.getElementById('videoUrl').value.trim();
 
-            Storage.saveLesson(name, data);
+            ClubStorage.saveLesson(name, data);
 
             currentLessonName = name;
             document.getElementById('currentLessonName').textContent = name;
@@ -211,7 +211,7 @@ How many people? / Сколько человек? / Қанша адам?"></text
         function deleteLesson(name) {
             if (!confirm(`Delete lesson "${name}"?`)) return;
 
-            Storage.deleteLesson(name);
+            ClubStorage.deleteLesson(name);
 
             if (currentLessonName === name) {
                 newLesson();
@@ -326,7 +326,7 @@ How many people? / Сколько человек? / Қанша адам?"></text
 
         function saveToDisplay() {
             data.current_video = document.getElementById('videoUrl').value.trim();
-            Storage.saveData(data);
+            ClubStorage.saveData(data);
             showSuccess('Saved to display page!');
         }
 
