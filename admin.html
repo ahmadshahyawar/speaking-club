@@ -5,141 +5,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Speaking Club - Admin Panel</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-        h1 {
-            color: #667eea;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        h2 {
-            color: #764ba2;
-            margin: 30px 0 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
-        }
-        .section {
-            margin-bottom: 40px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
-        }
-        input[type="text"], textarea {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        input[type="file"] {
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            width: 100%;
-        }
-        button {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-right: 10px;
-            margin-top: 10px;
-        }
-        button:hover {
-            background: #5568d3;
-        }
-        .btn-danger {
-            background: #e74c3c;
-        }
-        .btn-danger:hover {
-            background: #c0392b;
-        }
-        .btn-success {
-            background: #27ae60;
-        }
-        .btn-success:hover {
-            background: #229954;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border: 1px solid #ddd;
-        }
-        th {
-            background: #667eea;
-            color: white;
-        }
-        tr:nth-child(even) {
-            background: #f9f9f9;
-        }
-        .page-item {
-            background: #f0f0f0;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
-        .success-msg {
-            background: #27ae60;
-            color: white;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            display: none;
-        }
-        .grid-3 {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; min-height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+        h1 { color: #667eea; margin-bottom: 30px; text-align: center; }
+        h2 { color: #764ba2; margin: 30px 0 15px; padding-bottom: 10px; border-bottom: 2px solid #667eea; }
+        .section { margin-bottom: 40px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        input[type="text"], textarea { width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px; }
+        button { background: #667eea; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-right: 10px; margin-top: 10px; }
+        button:hover { background: #5568d3; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #229954; }
+        .btn-info { background: #3498db; }
+        .btn-info:hover { background: #2980b9; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border: 1px solid #ddd; }
+        th { background: #667eea; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .page-item { background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .success-msg { background: #27ae60; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px; display: none; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .lesson-management { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
+        .lesson-item { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 2px solid #ddd; }
+        .lesson-item:hover { border-color: #667eea; }
+        .current-lesson { border: 3px solid #27ae60; background: #e8f5e9; }
+        .lesson-name { font-weight: bold; color: #333; font-size: 16px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎯 Speaking Club - Admin Panel</h1>
-        
-        <div class="success-msg" id="successMsg">Data saved successfully!</div>
-        
+        <div class="success-msg" id="successMsg">Changes saved successfully!</div>
+
+        <div class="lesson-management">
+            <h2>📚 Lesson Management</h2>
+            <div class="form-group">
+                <label>Current Lesson: <span id="currentLessonName" style="color: #27ae60;">New Lesson</span></label>
+            </div>
+            <div class="form-group">
+                <label>Save Current Lesson As:</label>
+                <input type="text" id="lessonName" placeholder="e.g., Lesson 1 - Family">
+            </div>
+            <button class="btn-success" onclick="saveLesson()">💾 Save as Lesson</button>
+            <button class="btn-info" onclick="newLesson()">📄 New Lesson</button>
+
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">Saved Lessons:</h3>
+            <div id="lessonsList"></div>
+        </div>
+
         <div class="section">
             <h2>📹 Background Video</h2>
             <div class="form-group">
-                <label>Video URL (YouTube embed or direct link):</label>
-                <input type="text" id="videoUrl" placeholder="https://www.youtube.com/embed/VIDEO_ID or video.mp4">
+                <label>Video URL (YouTube or direct link):</label>
+                <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=VIDEO_ID or video.mp4">
             </div>
         </div>
 
         <div class="section">
             <h2>📚 Vocabulary Table</h2>
+            <div class="form-group">
+                <label>Quick Import (format: english / russian / kazakh):</label>
+                <textarea id="bulkWords" rows="5" placeholder="family / семья / отбасы
+parents / родители / ата-аналар"></textarea>
+                <button onclick="importWords()">📥 Import All Words</button>
+            </div>
+
             <div class="grid-3">
                 <div class="form-group">
                     <label>English:</label>
@@ -155,15 +89,10 @@
                 </div>
             </div>
             <button onclick="addWord()">➕ Add Word</button>
-            
+
             <table id="wordsTable">
                 <thead>
-                    <tr>
-                        <th>English</th>
-                        <th>Русский</th>
-                        <th>Қазақша</th>
-                        <th>Action</th>
-                    </tr>
+                    <tr><th>English</th><th>Русский</th><th>Қазақша</th><th>Action</th></tr>
                 </thead>
                 <tbody id="wordsBody"></tbody>
             </table>
@@ -171,6 +100,13 @@
 
         <div class="section">
             <h2>📄 Question Pages</h2>
+            <div class="form-group">
+                <label>Quick Import (format: question / translation - two per page):</label>
+                <textarea id="bulkQuestions" rows="5" placeholder="Who is in your family? / Кто в вашей семье? / Отбасыңызда кімдер бар?
+How many people? / Сколько человек? / Қанша адам?"></textarea>
+                <button onclick="importQuestions()">📥 Import Questions</button>
+            </div>
+
             <div class="form-group">
                 <label>Question 1 (English):</label>
                 <textarea id="q1En" rows="2" placeholder="What is your name?"></textarea>
@@ -188,39 +124,118 @@
                 <textarea id="q2Tr" rows="2" placeholder="Откуда вы? / Қайдансыз?"></textarea>
             </div>
             <button onclick="addPage()">➕ Add Page</button>
-            
             <div id="pagesContainer"></div>
         </div>
 
         <div style="text-align: center; margin-top: 30px;">
-            <button class="btn-success" onclick="saveAll()">💾 Save All Changes</button>
-            <button onclick="window.open('/display', '_blank')">👁️ Open Display Page</button>
+            <button class="btn-success" onclick="saveToDisplay()">💾 Save to Display</button>
+            <button onclick="window.open('display.html', '_blank')">👁️ Open Display Page</button>
         </div>
     </div>
 
+    <script src="seed-data.js"></script>
+    <script src="storage.js"></script>
     <script>
         let data = {words: [], pages: [], current_video: ''};
+        let currentLessonName = null;
+        let lessons = {};
 
-        async function loadData() {
-            const res = await fetch('/api/data');
-            data = await res.json();
+        function loadData() {
+            Storage.seedIfEmpty(DEFAULT_DATA, DEFAULT_LESSONS);
+            data = Storage.getData();
             document.getElementById('videoUrl').value = data.current_video || '';
             renderWords();
             renderPages();
+            loadLessons();
+        }
+
+        function loadLessons() {
+            lessons = Storage.getLessons();
+            renderLessonsList();
+        }
+
+        function renderLessonsList() {
+            const container = document.getElementById('lessonsList');
+            const lessonNames = Object.keys(lessons);
+
+            if (lessonNames.length === 0) {
+                container.innerHTML = '<p style="color: #999; font-style: italic;">No saved lessons yet</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            lessonNames.forEach(name => {
+                const isActive = name === currentLessonName;
+                container.innerHTML += `
+                    <div class="lesson-item ${isActive ? 'current-lesson' : ''}">
+                        <span class="lesson-name">${name}</span>
+                        <div>
+                            <button class="btn-info" onclick="loadLesson('${name}')">📂 Load</button>
+                            <button class="btn-danger" onclick="deleteLesson('${name}')">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function loadLesson(name) {
+            if (!lessons[name]) return;
+            data = JSON.parse(JSON.stringify(lessons[name]));
+            currentLessonName = name;
+            document.getElementById('currentLessonName').textContent = name;
+            document.getElementById('videoUrl').value = data.current_video || '';
+            renderWords();
+            renderPages();
+            renderLessonsList();
+        }
+
+        function saveLesson() {
+            const name = document.getElementById('lessonName').value.trim();
+            if (!name) {
+                alert('Please enter a lesson name');
+                return;
+            }
+
+            data.current_video = document.getElementById('videoUrl').value.trim();
+
+            Storage.saveLesson(name, data);
+
+            currentLessonName = name;
+            document.getElementById('currentLessonName').textContent = name;
+            document.getElementById('lessonName').value = '';
+
+            loadLessons();
+            showSuccess('Lesson saved: ' + name);
+        }
+
+        function deleteLesson(name) {
+            if (!confirm(`Delete lesson "${name}"?`)) return;
+
+            Storage.deleteLesson(name);
+
+            if (currentLessonName === name) {
+                newLesson();
+            }
+
+            loadLessons();
+            showSuccess('Lesson deleted');
+        }
+
+        function newLesson() {
+            data = {words: [], pages: [], current_video: ''};
+            currentLessonName = null;
+            document.getElementById('currentLessonName').textContent = 'New Lesson';
+            document.getElementById('videoUrl').value = '';
+            renderWords();
+            renderPages();
+            renderLessonsList();
         }
 
         function renderWords() {
             const tbody = document.getElementById('wordsBody');
             tbody.innerHTML = '';
             data.words.forEach((word, i) => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${word.en}</td>
-                        <td>${word.ru}</td>
-                        <td>${word.kz}</td>
-                        <td><button class="btn-danger" onclick="deleteWord(${i})">🗑️</button></td>
-                    </tr>
-                `;
+                tbody.innerHTML += `<tr><td>${word.en}</td><td>${word.ru}</td><td>${word.kz}</td><td><button class="btn-danger" onclick="deleteWord(${i})">🗑️</button></td></tr>`;
             });
         }
 
@@ -228,7 +243,6 @@
             const en = document.getElementById('wordEn').value.trim();
             const ru = document.getElementById('wordRu').value.trim();
             const kz = document.getElementById('wordKz').value.trim();
-            
             if (en && ru && kz) {
                 data.words.push({en, ru, kz});
                 renderWords();
@@ -236,6 +250,22 @@
                 document.getElementById('wordRu').value = '';
                 document.getElementById('wordKz').value = '';
             }
+        }
+
+        function importWords() {
+            const bulk = document.getElementById('bulkWords').value.trim();
+            if (!bulk) return;
+
+            const lines = bulk.split('\n');
+            lines.forEach(line => {
+                const parts = line.split('/').map(p => p.trim());
+                if (parts.length >= 3 && parts[0] && parts[1] && parts[2]) {
+                    data.words.push({en: parts[0], ru: parts[1], kz: parts[2]});
+                }
+            });
+
+            renderWords();
+            document.getElementById('bulkWords').value = '';
         }
 
         function deleteWord(i) {
@@ -247,16 +277,7 @@
             const container = document.getElementById('pagesContainer');
             container.innerHTML = '';
             data.pages.forEach((page, i) => {
-                container.innerHTML += `
-                    <div class="page-item">
-                        <h3>Page ${i + 1}</h3>
-                        <p><strong>Q1:</strong> ${page.q1_en}</p>
-                        <p><strong>T1:</strong> ${page.q1_tr}</p>
-                        <p><strong>Q2:</strong> ${page.q2_en}</p>
-                        <p><strong>T2:</strong> ${page.q2_tr}</p>
-                        <button class="btn-danger" onclick="deletePage(${i})">🗑️ Delete Page</button>
-                    </div>
-                `;
+                container.innerHTML += `<div class="page-item"><h3>Page ${i + 1}</h3><p><strong>Q1:</strong> ${page.q1_en}</p><p><strong>T1:</strong> ${page.q1_tr}</p><p><strong>Q2:</strong> ${page.q2_en}</p><p><strong>T2:</strong> ${page.q2_tr}</p><button class="btn-danger" onclick="deletePage(${i})">🗑️ Delete</button></div>`;
             });
         }
 
@@ -265,7 +286,6 @@
             const q1_tr = document.getElementById('q1Tr').value.trim();
             const q2_en = document.getElementById('q2En').value.trim();
             const q2_tr = document.getElementById('q2Tr').value.trim();
-            
             if (q1_en && q1_tr && q2_en && q2_tr) {
                 data.pages.push({q1_en, q1_tr, q2_en, q2_tr});
                 renderPages();
@@ -276,23 +296,45 @@
             }
         }
 
+        function importQuestions() {
+            const bulk = document.getElementById('bulkQuestions').value.trim();
+            if (!bulk) return;
+
+            const lines = bulk.split('\n').filter(l => l.trim());
+            for (let i = 0; i < lines.length; i += 2) {
+                if (i + 1 < lines.length) {
+                    const q1_parts = lines[i].split('/').map(p => p.trim());
+                    const q2_parts = lines[i + 1].split('/').map(p => p.trim());
+                    if (q1_parts.length >= 2 && q2_parts.length >= 2) {
+                        data.pages.push({
+                            q1_en: q1_parts[0],
+                            q1_tr: q1_parts.slice(1).join(' / '),
+                            q2_en: q2_parts[0],
+                            q2_tr: q2_parts.slice(1).join(' / ')
+                        });
+                    }
+                }
+            }
+            renderPages();
+            document.getElementById('bulkQuestions').value = '';
+        }
+
         function deletePage(i) {
             data.pages.splice(i, 1);
             renderPages();
         }
 
-        async function saveAll() {
+        function saveToDisplay() {
             data.current_video = document.getElementById('videoUrl').value.trim();
-            
-            const res = await fetch('/api/save', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-            
-            const msg = document.getElementById('successMsg');
-            msg.style.display = 'block';
-            setTimeout(() => msg.style.display = 'none', 3000);
+            Storage.saveData(data);
+            showSuccess('Saved to display page!');
+        }
+
+        function showSuccess(msg) {
+            const msgEl = document.getElementById('successMsg');
+            msgEl.textContent = msg;
+            msgEl.style.display = 'block';
+            setTimeout(() => msgEl.style.display = 'none', 3000);
         }
 
         loadData();
