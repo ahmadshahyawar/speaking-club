@@ -40,7 +40,7 @@ $initialData = [
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= $lesson ? 'Edit Lesson' : 'New Lesson' ?> - Speaking Club Portal</title>
-<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="<?= av('assets/css/style.css') ?>">
 <style>
     .row-flex { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
     .row-flex .field { flex: 1; margin-bottom: 0; }

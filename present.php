@@ -31,7 +31,7 @@ $data = [
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= htmlspecialchars($data['topic'], ENT_QUOTES, 'UTF-8') ?> - Speaking Club</title>
-<link rel="stylesheet" href="assets/css/backgrounds.css">
+<link rel="stylesheet" href="<?= av('assets/css/backgrounds.css') ?>">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -144,8 +144,8 @@ $data = [
 <button class="nav-arrow next" id="nextBtn">›</button>
 <div class="dots" id="dots"></div>
 
-<script src="assets/js/game-memory.js"></script>
-<script src="assets/js/game-quiz.js"></script>
+<script src="<?= av('assets/js/game-memory.js') ?>"></script>
+<script src="<?= av('assets/js/game-quiz.js') ?>"></script>
 <script>
 const LESSON = <?= json_encode($data, JSON_UNESCAPED_UNICODE) ?>;
 

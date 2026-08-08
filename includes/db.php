@@ -26,3 +26,11 @@ function db(): PDO {
     }
     return $pdo;
 }
+
+// Appends a filemtime-based version query string so browsers never serve a
+// stale cached copy of an asset after a deploy.
+function av(string $relativePath): string {
+    $full = __DIR__ . '/../' . $relativePath;
+    $v = @filemtime($full) ?: time();
+    return $relativePath . '?v=' . $v;
+}

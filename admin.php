@@ -85,7 +85,7 @@ $active = 'admin';
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Manage Teachers - Speaking Club Portal</title>
-<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="<?= av('assets/css/style.css') ?>">
 <style>
     .create-form { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
     .create-form .field { flex: 1; min-width: 180px; margin-bottom: 0; }
