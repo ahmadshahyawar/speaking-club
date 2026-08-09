@@ -72,7 +72,7 @@ $data = [
 
     .slider-viewport { position: relative; z-index: 2; width: 100%; height: 100vh; overflow: hidden; }
     .slider-track { display: flex; height: 100%; transition: transform 0.5s cubic-bezier(0.65, 0, 0.35, 1); }
-    .slide { min-width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 90px 30px 110px; overflow-y: auto; }
+    .slide { min-width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 115px 30px 110px; overflow-y: auto; }
 
     .content-box {
         background: rgba(0,0,0,0.4); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
@@ -94,10 +94,10 @@ $data = [
         margin-bottom: 10px; box-shadow: 0 6px 18px rgba(0,0,0,0.45); display: block;
     }
     .vocab-photo-empty { background: rgba(255,255,255,0.08); }
-    .vocab-en { font-weight: 700; font-size: 1.12em; margin-bottom: 4px; }
-    .vocab-tr { font-size: 0.92em; opacity: 0.82; line-height: 1.4; }
+    .vocab-en { font-weight: 700; font-size: 1.05em; margin-bottom: 4px; }
+    .vocab-tr { font-size: 0.88em; opacity: 0.82; line-height: 1.4; }
 
-    .slide-title { text-align: center; font-size: 1.9em; font-weight: 800; margin-bottom: 8px; }
+    .slide-title { text-align: center; font-size: 1.7em; font-weight: 800; margin-bottom: 8px; }
     .slide-title-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
     .slide-title-row .slide-title { margin-bottom: 0; }
     .tts-controls { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -116,8 +116,8 @@ $data = [
     tr.tts-active td { background: rgba(251,191,36,0.25) !important; }
     .level-tag { text-align: center; opacity: 0.7; margin-bottom: 20px; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.1em; }
     .lang-block { margin-bottom: 12px; }
-    .lang-block .en { font-size: 1.3em; font-weight: 700; margin-bottom: 8px; }
-    .lang-block .tr { font-size: 1.02em; opacity: 0.85; font-style: italic; line-height: 1.6; }
+    .lang-block .en { font-size: 1.15em; font-weight: 700; margin-bottom: 8px; }
+    .lang-block .tr { font-size: 0.95em; opacity: 0.85; font-style: italic; line-height: 1.6; }
     .question-num { opacity: 0.6; font-size: 0.85em; margin-bottom: 10px; text-align: center; }
 
     .nav-arrow {
