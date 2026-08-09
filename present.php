@@ -5,6 +5,7 @@ declare(strict_types=1);
 // unlisted link, same trust model as the original static display page.
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/backgrounds.php';
+require_once __DIR__ . '/includes/hangman.php';
 
 $id = (int)($_GET['id'] ?? 0);
 $stmt = db()->prepare('SELECT * FROM lessons WHERE id = ?');
@@ -16,13 +17,45 @@ if (!$lesson) {
     die('Lesson not found.');
 }
 
+$isPictureLevel = in_array($lesson['level'], ['beginner', 'elementary'], true);
+$vocab = json_decode($lesson['vocab'], true);
+$warmup = json_decode($lesson['warmup'], true);
+$questions = json_decode($lesson['questions'], true);
+$hangman = [];
+
+if ($isPictureLevel && $vocab) {
+    $words = array_map(static fn($w) => mb_strtolower(trim($w['en'])), $vocab);
+    $placeholders = implode(',', array_fill(0, count($words), '?'));
+    $imgStmt = db()->prepare("SELECT word, image_path FROM vocab_images WHERE word IN ($placeholders)");
+    $imgStmt->execute($words);
+    $imageMap = [];
+    foreach ($imgStmt->fetchAll() as $row) {
+        $imageMap[$row['word']] = $row['image_path'];
+    }
+    foreach ($vocab as &$w) {
+        $key = mb_strtolower(trim($w['en']));
+        if (isset($imageMap[$key])) {
+            $w['img'] = $imageMap[$key];
+        }
+    }
+    unset($w);
+
+    $hangman = extract_hangman_words(
+        (string)($warmup['en'] ?? ''),
+        array_column($questions, 'en'),
+        array_column($vocab, 'en'),
+        (int)$lesson['id']
+    );
+}
+
 $data = [
     'topic' => $lesson['topic'],
     'level' => $lesson['level'],
-    'vocab' => json_decode($lesson['vocab'], true),
-    'warmup' => json_decode($lesson['warmup'], true),
-    'questions' => json_decode($lesson['questions'], true),
+    'vocab' => $vocab,
+    'warmup' => $warmup,
+    'questions' => $questions,
     'background_key' => $lesson['background_key'],
+    'hangman' => $hangman,
 ];
 ?>
 <!DOCTYPE html>
@@ -59,6 +92,19 @@ $data = [
     th { background: rgba(91,95,239,0.75); padding: 13px; text-align: left; font-weight: 700; }
     td { padding: 12px 13px; border-bottom: 1px solid rgba(255,255,255,0.14); }
     tr:nth-child(even) td { background: rgba(255,255,255,0.04); }
+    .content-box.wide { max-width: 1100px; }
+    .vocab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 18px; }
+    .vocab-card {
+        background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.16); border-radius: 16px;
+        padding: 12px; text-align: center;
+    }
+    .vocab-photo {
+        width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px;
+        margin-bottom: 10px; box-shadow: 0 6px 18px rgba(0,0,0,0.45); display: block;
+    }
+    .vocab-photo-empty { background: rgba(255,255,255,0.08); }
+    .vocab-en { font-weight: 700; font-size: 1.12em; margin-bottom: 4px; }
+    .vocab-tr { font-size: 0.92em; opacity: 0.82; line-height: 1.4; }
 
     .slide-title { text-align: center; font-size: 1.9em; font-weight: 800; margin-bottom: 8px; }
     .level-tag { text-align: center; opacity: 0.7; margin-bottom: 20px; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.1em; }
@@ -124,6 +170,69 @@ $data = [
         display: block; margin: 18px auto 0; background: #5b5fef; font-family: inherit;
         color: #fff; border: none; padding: 11px 26px; border-radius: 999px; cursor: pointer; font-weight: 700;
     }
+
+    /* Persistent top-right game links (beginner/elementary) — stay above the overlay so either game is reachable at any time. */
+    .game-links { position: fixed; top: 18px; right: 26px; z-index: 22; display: flex; gap: 10px; }
+    .game-links button {
+        background: rgba(0,0,0,0.35); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
+        color: #fff; padding: 10px 18px; border-radius: 999px; cursor: pointer; font-weight: 700; font-size: 0.9em; font-family: inherit;
+    }
+    .game-links button:hover { background: rgba(0,0,0,0.55); }
+    .game-links button.active { background: #5b5fef; border-color: #5b5fef; }
+
+    .game-overlay {
+        position: fixed; inset: 0; z-index: 20; background: rgba(8,8,16,0.92); backdrop-filter: blur(8px);
+        display: flex; align-items: center; justify-content: center; padding: 90px 24px 40px;
+    }
+    .game-overlay[hidden] { display: none; }
+    .overlay-close {
+        position: fixed; top: 68px; right: 26px; z-index: 21; width: 38px; height: 38px; border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.12); color: #fff; font-size: 1.1em;
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .overlay-body { max-width: 720px; width: 100%; text-align: center; }
+    .overlay-title { font-size: 1.6em; font-weight: 800; margin-bottom: 22px; }
+
+    .restart-btn {
+        display: block; margin: 20px auto 0; background: #5b5fef; font-family: inherit;
+        color: #fff; border: none; padding: 11px 26px; border-radius: 999px; cursor: pointer; font-weight: 700;
+    }
+
+    /* Match game */
+    .match-prompt { margin-bottom: 18px; }
+    .match-photo { width: 150px; height: 150px; object-fit: cover; border-radius: 16px; margin: 0 auto 14px; display: block; box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+    .match-tr { font-size: 1.3em; font-weight: 700; line-height: 1.5; }
+    .match-feedback { min-height: 1.4em; font-weight: 700; margin-bottom: 14px; }
+    .match-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .match-opt {
+        border: none; border-radius: 12px; padding: 16px 10px; color: #fff; font-weight: 700; font-size: 1.05em;
+        cursor: pointer; font-family: inherit; box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+    }
+    .match-opt:disabled { opacity: 0.4; cursor: default; }
+    .match-status { margin-top: 18px; opacity: 0.75; font-size: 0.9em; }
+    .match-complete h3 { font-size: 1.4em; margin-bottom: 8px; }
+
+    /* Hangman game */
+    .hangman-cat { opacity: 0.7; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+    .hangman-clue { font-size: 1.1em; font-style: italic; opacity: 0.9; margin-bottom: 18px; line-height: 1.6; }
+    .hangman-word { font-size: 2.1em; font-weight: 800; letter-spacing: 0.12em; margin-bottom: 12px; }
+    .hangman-status { opacity: 0.75; margin-bottom: 18px; font-size: 0.9em; }
+    .hangman-keys { display: grid; grid-template-columns: repeat(9, 1fr); gap: 8px; max-width: 480px; margin: 0 auto; }
+    .hg-key {
+        background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-family: inherit;
+        padding: 10px 0; border-radius: 8px; cursor: pointer; font-weight: 700;
+    }
+    .hg-key:disabled { opacity: 0.3; cursor: default; }
+    .hangman-result h3 { font-size: 1.4em; margin-bottom: 8px; }
+
+    /* Paired questions */
+    .q-pair { display: flex; flex-direction: column; gap: 20px; }
+    .q-block { text-align: left; }
+    .q-index {
+        display: inline-flex; align-items: center; justify-content: center; background: rgba(91,95,239,0.6);
+        border-radius: 999px; width: 26px; height: 26px; font-weight: 700; font-size: 0.85em; margin-bottom: 8px;
+    }
+    .q-divider { height: 1px; background: rgba(255,255,255,0.15); }
 </style>
 </head>
 <body>
@@ -135,6 +244,17 @@ $data = [
         <div class="l"><?= htmlspecialchars($data['level'], ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 </div>
+
+<?php if ($isPictureLevel): ?>
+<div class="game-links" id="gameLinks">
+    <button type="button" id="btnMatch">🎯 Match</button>
+    <button type="button" id="btnHangman">🔠 Hangman</button>
+</div>
+<div class="game-overlay" id="gameOverlay" hidden>
+    <button class="overlay-close" id="overlayClose">✕</button>
+    <div class="overlay-body" id="overlayBody"></div>
+</div>
+<?php endif; ?>
 
 <div class="slider-viewport">
     <div class="slider-track" id="sliderTrack"></div>
@@ -155,11 +275,11 @@ function esc(s) {
     return d.innerHTML;
 }
 
-function buildSlide(innerHtml) {
+function buildSlide(innerHtml, extraClass) {
     const slide = document.createElement('div');
     slide.className = 'slide';
     const box = document.createElement('div');
-    box.className = 'content-box';
+    box.className = 'content-box' + (extraClass ? ' ' + extraClass : '');
     box.innerHTML = innerHtml;
     slide.appendChild(box);
     return slide;
@@ -169,11 +289,26 @@ const track = document.getElementById('sliderTrack');
 const slides = [];
 
 // Slide 0: vocabulary
-slides.push(buildSlide(`
-    <div class="slide-title">📚 Vocabulary</div>
-    <table><thead><tr><th>English</th><th>Русский</th><th>Қазақша</th></tr></thead>
-    <tbody>${LESSON.vocab.map(w => `<tr><td>${esc(w.en)}</td><td>${esc(w.ru)}</td><td>${esc(w.kz)}</td></tr>`).join('')}</tbody></table>
-`));
+const hasImages = LESSON.vocab.some(w => w.img);
+if (hasImages) {
+    slides.push(buildSlide(`
+        <div class="slide-title">📚 Vocabulary</div>
+        <div class="vocab-grid">${LESSON.vocab.map(w => `
+            <div class="vocab-card">
+                ${w.img ? `<img class="vocab-photo" src="${esc(w.img)}" alt="${esc(w.en)}">` : '<div class="vocab-photo vocab-photo-empty"></div>'}
+                <div class="vocab-en">${esc(w.en)}</div>
+                <div class="vocab-tr">${esc(w.ru)}</div>
+                <div class="vocab-tr">${esc(w.kz)}</div>
+            </div>
+        `).join('')}</div>
+    `, 'wide'));
+} else {
+    slides.push(buildSlide(`
+        <div class="slide-title">📚 Vocabulary</div>
+        <table><thead><tr><th>English</th><th>Русский</th><th>Қазақша</th></tr></thead>
+        <tbody>${LESSON.vocab.map(w => `<tr><td>${esc(w.en)}</td><td>${esc(w.ru)}</td><td>${esc(w.kz)}</td></tr>`).join('')}</tbody></table>
+    `));
+}
 
 // Slide 1: warmup
 slides.push(buildSlide(`
@@ -183,26 +318,56 @@ slides.push(buildSlide(`
     <div class="lang-block"><div class="tr"><strong>KZ:</strong> ${esc(LESSON.warmup.kz)}</div></div>
 `));
 
-// Slide 2: game hub
-const gameSlide = buildSlide(`
-    <div class="slide-title">🎮 Let's Play!</div>
-    <div class="game-menu">
-        <button id="playMemory" type="button">🧠 Memory Match</button>
-        <button id="playQuiz" type="button">⚡ Speed Quiz</button>
-    </div>
-    <div id="gameArea" style="margin-top:20px;"></div>
-`);
-slides.push(gameSlide);
+const isPictureLevel = LESSON.level === 'beginner' || LESSON.level === 'elementary';
+let gameSlide = null;
 
-// Slides 3+: one per question
-LESSON.questions.forEach((q, i) => {
-    slides.push(buildSlide(`
-        <div class="question-num">Question ${i + 1} of ${LESSON.questions.length}</div>
-        <div class="lang-block"><div class="en">${esc(q.en)}</div></div>
-        <div class="lang-block"><div class="tr"><strong>RU:</strong> ${esc(q.ru)}</div></div>
-        <div class="lang-block"><div class="tr"><strong>KZ:</strong> ${esc(q.kz)}</div></div>
-    `));
-});
+if (isPictureLevel) {
+    // Questions paired two-per-slide; games live in the persistent top-right buttons instead of a hub slide.
+    for (let i = 0; i < LESSON.questions.length; i += 2) {
+        const q1 = LESSON.questions[i];
+        const q2 = LESSON.questions[i + 1];
+        slides.push(buildSlide(`
+            <div class="question-num">Questions ${i + 1}${q2 ? '–' + (i + 2) : ''} of ${LESSON.questions.length}</div>
+            <div class="q-pair">
+                <div class="q-block">
+                    <div class="q-index">${i + 1}</div>
+                    <div class="lang-block"><div class="en">${esc(q1.en)}</div></div>
+                    <div class="lang-block"><div class="tr"><strong>RU:</strong> ${esc(q1.ru)}</div></div>
+                    <div class="lang-block"><div class="tr"><strong>KZ:</strong> ${esc(q1.kz)}</div></div>
+                </div>
+                ${q2 ? `
+                <div class="q-divider"></div>
+                <div class="q-block">
+                    <div class="q-index">${i + 2}</div>
+                    <div class="lang-block"><div class="en">${esc(q2.en)}</div></div>
+                    <div class="lang-block"><div class="tr"><strong>RU:</strong> ${esc(q2.ru)}</div></div>
+                    <div class="lang-block"><div class="tr"><strong>KZ:</strong> ${esc(q2.kz)}</div></div>
+                </div>` : ''}
+            </div>
+        `));
+    }
+} else {
+    // Slide: game hub (Memory Match / Speed Quiz)
+    gameSlide = buildSlide(`
+        <div class="slide-title">🎮 Let's Play!</div>
+        <div class="game-menu">
+            <button id="playMemory" type="button">🧠 Memory Match</button>
+            <button id="playQuiz" type="button">⚡ Speed Quiz</button>
+        </div>
+        <div id="gameArea" style="margin-top:20px;"></div>
+    `);
+    slides.push(gameSlide);
+
+    // One slide per question
+    LESSON.questions.forEach((q, i) => {
+        slides.push(buildSlide(`
+            <div class="question-num">Question ${i + 1} of ${LESSON.questions.length}</div>
+            <div class="lang-block"><div class="en">${esc(q.en)}</div></div>
+            <div class="lang-block"><div class="tr"><strong>RU:</strong> ${esc(q.ru)}</div></div>
+            <div class="lang-block"><div class="tr"><strong>KZ:</strong> ${esc(q.kz)}</div></div>
+        `));
+    });
+}
 
 slides.forEach(s => track.appendChild(s));
 
@@ -232,40 +397,194 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft') goTo(current - 1);
 });
 
-// Game hub wiring
-gameSlide.querySelector('#playMemory').addEventListener('click', () => startGame('memory'));
-gameSlide.querySelector('#playQuiz').addEventListener('click', () => startGame('quiz'));
+// Game hub wiring (Memory Match / Speed Quiz) — pre-intermediate/intermediate only
+if (gameSlide) {
+    gameSlide.querySelector('#playMemory').addEventListener('click', () => startGame('memory'));
+    gameSlide.querySelector('#playQuiz').addEventListener('click', () => startGame('quiz'));
 
-function startGame(type) {
-    const area = gameSlide.querySelector('#gameArea');
-    area.innerHTML = `
-        <div class="lang-toggle">
-            <span style="opacity:0.75;align-self:center;margin-right:6px;">Practice against:</span>
-            <button class="lang-btn active" data-lang="ru" type="button">Russian</button>
-            <button class="lang-btn" data-lang="kz" type="button">Kazakh</button>
-        </div>
-        <div id="gameMount"></div>
-    `;
-    const mount = area.querySelector('#gameMount');
-    let lang = 'ru';
+    function startGame(type) {
+        const area = gameSlide.querySelector('#gameArea');
+        area.innerHTML = `
+            <div class="lang-toggle">
+                <span style="opacity:0.75;align-self:center;margin-right:6px;">Practice against:</span>
+                <button class="lang-btn active" data-lang="ru" type="button">Russian</button>
+                <button class="lang-btn" data-lang="kz" type="button">Kazakh</button>
+            </div>
+            <div id="gameMount"></div>
+        `;
+        const mount = area.querySelector('#gameMount');
+        let lang = 'ru';
 
-    function launch() {
-        mount.innerHTML = '';
-        if (type === 'memory') {
-            initMemoryGame(mount, LESSON.vocab, lang);
-        } else {
-            initQuizGame(mount, LESSON.vocab, lang);
+        function launch() {
+            mount.innerHTML = '';
+            if (type === 'memory') {
+                initMemoryGame(mount, LESSON.vocab, lang);
+            } else {
+                initQuizGame(mount, LESSON.vocab, lang);
+            }
         }
-    }
-    area.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            area.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            lang = btn.dataset.lang;
-            launch();
+        area.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                area.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                lang = btn.dataset.lang;
+                launch();
+            });
         });
+        launch();
+    }
+}
+
+// Persistent Match / Hangman games — beginner/elementary only
+if (isPictureLevel) {
+    const overlay = document.getElementById('gameOverlay');
+    const overlayBody = document.getElementById('overlayBody');
+    const overlayClose = document.getElementById('overlayClose');
+    const btnMatch = document.getElementById('btnMatch');
+    const btnHangman = document.getElementById('btnHangman');
+
+    function openOverlay(title, builder, activeBtn) {
+        overlayBody.innerHTML = `<div class="overlay-title">${title}</div><div id="overlayGame"></div>`;
+        overlay.hidden = false;
+        builder(overlayBody.querySelector('#overlayGame'));
+        [btnMatch, btnHangman].forEach(b => b.classList.toggle('active', b === activeBtn));
+    }
+    overlayClose.addEventListener('click', () => {
+        overlay.hidden = true;
+        overlayBody.innerHTML = '';
+        [btnMatch, btnHangman].forEach(b => b.classList.remove('active'));
     });
-    launch();
+
+    btnMatch.addEventListener('click', () => openOverlay('🎯 Match the Word', mount => startMatchGame(mount, LESSON.vocab), btnMatch));
+    btnHangman.addEventListener('click', () => openOverlay('🔠 Hangman', mount => startHangmanGame(mount, LESSON.hangman), btnHangman));
+}
+
+const MATCH_COLORS = ['#dc2626', '#ea580c', '#2563eb', '#0891b2', '#16a34a', '#7c3aed', '#db2777', '#059669', '#ca8a04', '#4338ca'];
+
+function shuffleArray(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+function startMatchGame(container, vocabList) {
+    let queue = shuffleArray(vocabList);
+    let score = 0;
+    const totalWords = vocabList.length;
+
+    function renderRound() {
+        if (!queue.length) { renderComplete(); return; }
+        const target = queue[0];
+        const pool = shuffleArray(vocabList.filter(w => w.en !== target.en)).slice(0, 5);
+        const options = shuffleArray([target, ...pool]);
+        container.innerHTML = `
+            <div class="match-prompt">
+                ${target.img ? `<img class="match-photo" src="${esc(target.img)}" alt="">` : ''}
+                <div class="match-tr">${esc(target.ru)}</div>
+                <div class="match-tr">${esc(target.kz)}</div>
+            </div>
+            <div class="match-feedback" id="matchFeedback"></div>
+            <div class="match-grid">${options.map((o, i) => `<button type="button" class="match-opt" data-en="${esc(o.en)}" style="background:${MATCH_COLORS[i % MATCH_COLORS.length]}">${esc(o.en)}</button>`).join('')}</div>
+            <div class="match-status">${score} correct so far</div>
+        `;
+        const feedback = container.querySelector('#matchFeedback');
+        container.querySelectorAll('.match-opt').forEach(btn => {
+            btn.addEventListener('click', () => {
+                container.querySelectorAll('.match-opt').forEach(b => b.disabled = true);
+                if (btn.dataset.en === target.en) {
+                    feedback.textContent = '✅ Correct!';
+                    score++;
+                    queue.shift();
+                } else {
+                    feedback.textContent = '❌ Wrong — we will show it again later.';
+                    queue.push(queue.shift());
+                }
+                setTimeout(renderRound, 800);
+            });
+        });
+    }
+
+    function renderComplete() {
+        container.innerHTML = `
+            <div class="match-complete">
+                <h3>🎉 All words matched!</h3>
+                <p>${score} correct answers out of ${totalWords} words.</p>
+                <button type="button" class="restart-btn" id="matchRestart">Play again</button>
+            </div>
+        `;
+        container.querySelector('#matchRestart').addEventListener('click', () => startMatchGame(container, vocabList));
+    }
+
+    renderRound();
+}
+
+function startHangmanGame(container, words) {
+    if (!words || !words.length) {
+        container.innerHTML = `<p>No hangman words available for this lesson.</p>`;
+        return;
+    }
+    let idx = 0;
+    let solved = 0;
+
+    function renderWord() {
+        if (idx >= words.length) { renderComplete(); return; }
+        const { word, clue } = words[idx];
+        const letters = word.toUpperCase().split('');
+        const guessed = new Set();
+        let wrong = 0;
+        const maxWrong = 6;
+
+        function draw() {
+            const display = letters.map(l => guessed.has(l) ? l : '_').join(' ');
+            container.innerHTML = `
+                <div class="hangman-cat">Word ${idx + 1} of ${words.length}</div>
+                <div class="hangman-clue">${esc(clue)}</div>
+                <div class="hangman-word">${display}</div>
+                <div class="hangman-status">Mistakes: ${wrong} / ${maxWrong}</div>
+                <div class="hangman-keys">${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l => `<button type="button" class="hg-key" data-l="${l}" ${guessed.has(l) ? 'disabled' : ''}>${l}</button>`).join('')}</div>
+            `;
+            container.querySelectorAll('.hg-key').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const l = btn.dataset.l;
+                    guessed.add(l);
+                    if (!letters.includes(l)) wrong++;
+                    if (wrong >= maxWrong) { finishWord(false); return; }
+                    if (letters.every(l2 => guessed.has(l2))) { finishWord(true); return; }
+                    draw();
+                });
+            });
+        }
+
+        function finishWord(won) {
+            solved += won ? 1 : 0;
+            container.innerHTML = `
+                <div class="hangman-result">
+                    <h3>${won ? '🎉 Correct!' : '😅 Out of tries!'}</h3>
+                    <p>The word was <strong>${esc(word.toUpperCase())}</strong></p>
+                    <button type="button" class="restart-btn" id="hgNext">${idx + 1 < words.length ? 'Next word' : 'See results'}</button>
+                </div>
+            `;
+            container.querySelector('#hgNext').addEventListener('click', () => { idx++; renderWord(); });
+        }
+
+        draw();
+    }
+
+    function renderComplete() {
+        container.innerHTML = `
+            <div class="hangman-result">
+                <h3>🏁 Finished!</h3>
+                <p>${solved} of ${words.length} words solved.</p>
+                <button type="button" class="restart-btn" id="hgRestart">Play again</button>
+            </div>
+        `;
+        container.querySelector('#hgRestart').addEventListener('click', () => { idx = 0; solved = 0; renderWord(); });
+    }
+
+    renderWord();
 }
 
 goTo(0);
