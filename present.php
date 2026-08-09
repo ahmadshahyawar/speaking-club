@@ -199,8 +199,8 @@ $data = [
 </div>
 
 <div class="game-links" id="gameLinks">
-    <a href="game.php?id=<?= $data['id'] ?>&type=match" target="_blank" rel="noopener">🎯 Match</a>
-    <a href="game.php?id=<?= $data['id'] ?>&type=hangman" target="_blank" rel="noopener">🔠 Hangman</a>
+    <a href="game.php?id=<?= $data['id'] ?>&type=match">🎯 Match</a>
+    <a href="game.php?id=<?= $data['id'] ?>&type=hangman">🔠 Hangman</a>
 </div>
 
 <div class="slider-viewport">
