@@ -213,17 +213,51 @@ $data = [
     .match-complete h3 { font-size: 1.4em; margin-bottom: 8px; }
 
     /* Hangman game */
-    .hangman-cat { opacity: 0.7; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
-    .hangman-clue { font-size: 1.1em; font-style: italic; opacity: 0.9; margin-bottom: 18px; line-height: 1.6; }
-    .hangman-word { font-size: 2.1em; font-weight: 800; letter-spacing: 0.12em; margin-bottom: 12px; }
-    .hangman-status { opacity: 0.75; margin-bottom: 18px; font-size: 0.9em; }
-    .hangman-keys { display: grid; grid-template-columns: repeat(9, 1fr); gap: 8px; max-width: 480px; margin: 0 auto; }
-    .hg-key {
-        background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-family: inherit;
-        padding: 10px 0; border-radius: 8px; cursor: pointer; font-weight: 700;
+    @keyframes partPop { 0% { transform: scale(0); opacity: 0; } 65% { transform: scale(1.18); } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes tilePop { 0% { transform: scale(0.4) rotate(-8deg); opacity: 0; } 70% { transform: scale(1.12) rotate(3deg); } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+    @keyframes keyShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+    .hangman-panel {
+        background: linear-gradient(160deg, #eef1f8, #d7deeb); border-radius: 28px; padding: 30px 26px 34px;
+        color: #1c2130; max-width: 820px; margin: 0 auto; box-shadow: 0 24px 60px rgba(0,0,0,0.55);
     }
-    .hg-key:disabled { opacity: 0.3; cursor: default; }
-    .hangman-result h3 { font-size: 1.4em; margin-bottom: 8px; }
+    .hangman-topline { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .hangman-pill {
+        background: #fff; border-radius: 999px; padding: 9px 22px; font-weight: 800; font-size: 1em;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+    }
+    .hangman-layout { display: flex; align-items: center; justify-content: center; gap: 22px; flex-wrap: wrap; }
+    .hangman-vowels { display: flex; flex-direction: column; gap: 10px; }
+    .hangman-consonants { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .letter-btn {
+        width: 54px; height: 54px; border-radius: 50%; border: none; background: #fff; color: #232838;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.18); font-weight: 800; font-size: 1.15em; cursor: pointer;
+        font-family: inherit; transition: transform 0.15s;
+    }
+    .letter-btn:hover:not(:disabled) { transform: scale(1.08); }
+    .letter-btn:disabled { opacity: 0.35; cursor: default; }
+    .letter-btn.correct { background: #4ade80; color: #fff; }
+    .letter-btn.wrong { background: #f87171; color: #fff; animation: keyShake 0.4s; }
+    .hangman-center { display: flex; flex-direction: column; align-items: center; }
+    .hangman-cat { opacity: 0.6; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+    .hangman-word-tiles { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+    .hg-tile {
+        width: 46px; height: 54px; border-radius: 10px; background: #fbbf24; display: flex; align-items: center;
+        justify-content: center; font-weight: 800; font-size: 1.35em; color: #1c2130; box-shadow: 0 4px 10px rgba(0,0,0,0.22);
+    }
+    .hg-tile.filled { animation: tilePop 0.35s ease; }
+    .hangman-status { opacity: 0.65; margin-top: 14px; font-size: 0.88em; }
+    .hangman-clue-box { margin-top: 20px; font-size: 1.05em; text-align: center; max-width: 480px; line-height: 1.5; }
+    .hangman-hint-btn {
+        margin-top: 14px; background: #5b5fef; color: #fff; border: none; padding: 9px 20px; border-radius: 999px;
+        font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.9em;
+    }
+    .hangman-hint-box {
+        margin-top: 12px; background: rgba(91,95,239,0.1); border-radius: 14px; padding: 12px 18px;
+        font-size: 0.92em; text-align: left; max-width: 480px; line-height: 1.6;
+    }
+    .hangman-result { text-align: center; color: #1c2130; }
+    .hangman-result h3 { font-size: 1.5em; margin-bottom: 8px; }
 
     /* Paired questions */
     .q-pair { display: flex; flex-direction: column; gap: 20px; }
@@ -444,7 +478,7 @@ if (isPictureLevel) {
     const btnHangman = document.getElementById('btnHangman');
 
     function openOverlay(title, builder, activeBtn) {
-        overlayBody.innerHTML = `<div class="overlay-title">${title}</div><div id="overlayGame"></div>`;
+        overlayBody.innerHTML = (title ? `<div class="overlay-title">${title}</div>` : '') + '<div id="overlayGame"></div>';
         overlay.hidden = false;
         builder(overlayBody.querySelector('#overlayGame'));
         [btnMatch, btnHangman].forEach(b => b.classList.toggle('active', b === activeBtn));
@@ -456,7 +490,7 @@ if (isPictureLevel) {
     });
 
     btnMatch.addEventListener('click', () => openOverlay('🎯 Match the Word', mount => startMatchGame(mount, LESSON.vocab), btnMatch));
-    btnHangman.addEventListener('click', () => openOverlay('🔠 Hangman', mount => startHangmanGame(mount, LESSON.hangman), btnHangman));
+    btnHangman.addEventListener('click', () => openOverlay('', mount => startHangmanGame(mount, LESSON.hangman, LESSON.topic), btnHangman));
 }
 
 const MATCH_COLORS = ['#dc2626', '#ea580c', '#2563eb', '#0891b2', '#16a34a', '#7c3aed', '#db2777', '#059669', '#ca8a04', '#4338ca'];
@@ -522,26 +556,32 @@ function startMatchGame(container, vocabList) {
 }
 
 const HANGMAN_MAX_WRONG = 5;
+const HANGMAN_VOWELS = ['A', 'E', 'I', 'O', 'U'];
+const HANGMAN_CONSONANTS = 'BCDFGHJKLMNPQRSTVWXYZ'.split('');
+
+function hangmanPart(inner) {
+    return `<g style="transform-box:fill-box;transform-origin:center;animation:partPop .4s ease;">${inner}</g>`;
+}
 
 function hangmanSvg(wrong) {
-    let svg = `<svg viewBox="0 0 200 220" width="180" height="198" style="display:block;margin:0 auto 16px;">
-        <g stroke="#fff" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.85">
-            <line x1="18" y1="204" x2="92" y2="204"/>
-            <line x1="45" y1="204" x2="45" y2="16"/>
-            <line x1="45" y1="16" x2="140" y2="16"/>
-            <line x1="140" y1="16" x2="140" y2="42"/>
+    let svg = `<svg viewBox="0 0 240 260" width="220" height="238" style="display:block;margin:0 auto;">
+        <g stroke="#2c3142" stroke-width="10" stroke-linecap="round" fill="none">
+            <line x1="20" y1="240" x2="112" y2="240"/>
+            <line x1="56" y1="240" x2="56" y2="18"/>
+            <line x1="56" y1="18" x2="165" y2="18"/>
+            <line x1="165" y1="18" x2="165" y2="48"/>
         </g>`;
-    const p = '<g stroke="#ff8a5c" stroke-width="8" stroke-linecap="round" fill="none">';
-    if (wrong >= 1) svg += `${p}<circle cx="140" cy="60" r="18" stroke-width="7"/></g>`;
-    if (wrong >= 2) svg += `${p}<line x1="140" y1="78" x2="140" y2="136"/></g>`;
-    if (wrong >= 3) svg += `${p}<line x1="140" y1="94" x2="112" y2="118"/></g>`;
-    if (wrong >= 4) svg += `${p}<line x1="140" y1="94" x2="168" y2="118"/></g>`;
-    if (wrong >= 5) svg += `${p}<line x1="140" y1="136" x2="115" y2="178"/><line x1="140" y1="136" x2="165" y2="178"/></g>`;
+    const s = 'stroke="#ff6b4a" stroke-width="9" stroke-linecap="round" fill="none"';
+    if (wrong >= 1) svg += hangmanPart(`<circle cx="165" cy="68" r="20" ${s}/>`);
+    if (wrong >= 2) svg += hangmanPart(`<line x1="165" y1="88" x2="165" y2="155" ${s}/>`);
+    if (wrong >= 3) svg += hangmanPart(`<line x1="165" y1="105" x2="132" y2="132" ${s}/>`);
+    if (wrong >= 4) svg += hangmanPart(`<line x1="165" y1="105" x2="198" y2="132" ${s}/>`);
+    if (wrong >= 5) svg += hangmanPart(`<line x1="165" y1="155" x2="136" y2="205" ${s}/><line x1="165" y1="155" x2="194" y2="205" ${s}/>`);
     svg += `</svg>`;
     return svg;
 }
 
-function startHangmanGame(container, words) {
+function startHangmanGame(container, words, topic) {
     if (!words || !words.length) {
         container.innerHTML = `<p>No hangman words available for this lesson.</p>`;
         return;
@@ -549,24 +589,52 @@ function startHangmanGame(container, words) {
     let idx = 0;
     let solved = 0;
 
+    function keyBtn(l, guessed, letters) {
+        let cls = 'letter-btn';
+        if (guessed.has(l)) cls += letters.includes(l) ? ' correct' : ' wrong';
+        return `<button type="button" class="${cls}" data-l="${l}" ${guessed.has(l) ? 'disabled' : ''}>${l}</button>`;
+    }
+
     function renderWord() {
         if (idx >= words.length) { renderComplete(); return; }
         const { word, clue } = words[idx];
         const letters = word.toUpperCase().split('');
         const guessed = new Set();
         let wrong = 0;
+        let hintShown = false;
 
         function draw() {
-            const display = letters.map(l => guessed.has(l) ? l : '_').join(' ');
+            const tiles = letters.map(l => `<div class="hg-tile ${guessed.has(l) ? 'filled' : ''}">${guessed.has(l) ? l : ''}</div>`).join('');
             container.innerHTML = `
-                <div class="hangman-cat">Word ${idx + 1} of ${words.length}</div>
-                ${hangmanSvg(wrong)}
-                <div class="hangman-clue">${esc(clue)}</div>
-                <div class="hangman-word">${display}</div>
-                <div class="hangman-status">Wrong guesses: ${wrong} / ${HANGMAN_MAX_WRONG}</div>
-                <div class="hangman-keys">${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l => `<button type="button" class="hg-key" data-l="${l}" ${guessed.has(l) ? 'disabled' : ''}>${l}</button>`).join('')}</div>
+                <div class="hangman-panel">
+                    <div class="hangman-topline">
+                        <div class="hangman-pill">${esc(topic)}</div>
+                        <div class="hangman-pill">Word ${idx + 1} of ${words.length}</div>
+                    </div>
+                    <div class="hangman-layout">
+                        <div class="hangman-vowels">${HANGMAN_VOWELS.map(l => keyBtn(l, guessed, letters)).join('')}</div>
+                        <div class="hangman-center">
+                            ${hangmanSvg(wrong)}
+                            <div class="hangman-word-tiles">${tiles}</div>
+                            <div class="hangman-status">Wrong guesses: ${wrong} / ${HANGMAN_MAX_WRONG}</div>
+                            <div class="hangman-clue-box">${esc(clue.en)}</div>
+                            <button type="button" class="hangman-hint-btn" id="hgHint">💡 Hint (RU / KZ)</button>
+                            <div class="hangman-hint-box" id="hgHintBox" hidden>
+                                <div><strong>RU:</strong> ${esc(clue.ru)}</div>
+                                <div><strong>KZ:</strong> ${esc(clue.kz)}</div>
+                            </div>
+                        </div>
+                        <div class="hangman-consonants">${HANGMAN_CONSONANTS.map(l => keyBtn(l, guessed, letters)).join('')}</div>
+                    </div>
+                </div>
             `;
-            container.querySelectorAll('.hg-key').forEach(btn => {
+            const hintBox = container.querySelector('#hgHintBox');
+            if (hintShown) hintBox.hidden = false;
+            container.querySelector('#hgHint').addEventListener('click', () => {
+                hintShown = true;
+                hintBox.hidden = false;
+            });
+            container.querySelectorAll('.letter-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const l = btn.dataset.l;
                     guessed.add(l);
@@ -581,11 +649,13 @@ function startHangmanGame(container, words) {
         function finishWord(won, wrongCount) {
             solved += won ? 1 : 0;
             container.innerHTML = `
-                ${hangmanSvg(wrongCount)}
-                <div class="hangman-result">
-                    <h3>${won ? '🎉 Correct!' : '💀 He got hanged!'}</h3>
-                    <p>The word was <strong>${esc(word.toUpperCase())}</strong></p>
-                    <button type="button" class="restart-btn" id="hgNext">${idx + 1 < words.length ? 'Next word' : 'See results'}</button>
+                <div class="hangman-panel">
+                    ${hangmanSvg(wrongCount)}
+                    <div class="hangman-result">
+                        <h3>${won ? '🎉 Correct!' : '💀 He got hanged!'}</h3>
+                        <p>The word was <strong>${esc(word.toUpperCase())}</strong></p>
+                        <button type="button" class="restart-btn" id="hgNext">${idx + 1 < words.length ? 'Next word' : 'See results'}</button>
+                    </div>
                 </div>
             `;
             container.querySelector('#hgNext').addEventListener('click', () => { idx++; renderWord(); });
@@ -596,10 +666,12 @@ function startHangmanGame(container, words) {
 
     function renderComplete() {
         container.innerHTML = `
-            <div class="hangman-result">
-                <h3>🏁 Finished!</h3>
-                <p>${solved} of ${words.length} words solved.</p>
-                <button type="button" class="restart-btn" id="hgRestart">Play again</button>
+            <div class="hangman-panel">
+                <div class="hangman-result">
+                    <h3>🏁 Finished!</h3>
+                    <p>${solved} of ${words.length} words solved.</p>
+                    <button type="button" class="restart-btn" id="hgRestart">Play again</button>
+                </div>
             </div>
         `;
         container.querySelector('#hgRestart').addEventListener('click', () => { idx = 0; solved = 0; renderWord(); });
