@@ -182,7 +182,8 @@ $data = [
 
     .game-overlay {
         position: fixed; inset: 0; z-index: 20; background: rgba(8,8,16,0.92); backdrop-filter: blur(8px);
-        display: flex; align-items: center; justify-content: center; padding: 90px 24px 40px;
+        display: flex; align-items: flex-start; justify-content: center; padding: 78px 24px 24px;
+        overflow-y: auto;
     }
     .game-overlay[hidden] { display: none; }
     .overlay-close {
@@ -218,46 +219,52 @@ $data = [
     @keyframes keyShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 
     .hangman-panel {
-        background: linear-gradient(160deg, #eef1f8, #d7deeb); border-radius: 28px; padding: 30px 26px 34px;
-        color: #1c2130; max-width: 820px; margin: 0 auto; box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+        background: linear-gradient(160deg, #eef1f8, #d7deeb); border-radius: 24px; padding: 20px 24px;
+        color: #1c2130; max-width: 780px; width: 100%; margin: 0 auto; box-shadow: 0 24px 60px rgba(0,0,0,0.55);
     }
-    .hangman-topline { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .hangman-topline { display: flex; justify-content: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
     .hangman-pill {
-        background: #fff; border-radius: 999px; padding: 9px 22px; font-weight: 800; font-size: 1em;
+        background: #fff; border-radius: 999px; padding: 6px 16px; font-weight: 800; font-size: 0.85em;
         box-shadow: 0 3px 10px rgba(0,0,0,0.15);
     }
-    .hangman-layout { display: flex; align-items: center; justify-content: center; gap: 22px; flex-wrap: wrap; }
-    .hangman-vowels { display: flex; flex-direction: column; gap: 10px; }
-    .hangman-consonants { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .hangman-layout { display: flex; align-items: flex-start; justify-content: center; gap: 20px; }
+    .hangman-left { display: flex; flex-direction: column; align-items: center; flex: 1 1 auto; min-width: 0; }
+    .hangman-alphabet {
+        display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; flex: 0 0 auto;
+        width: 236px; align-content: start;
+    }
     .letter-btn {
-        width: 54px; height: 54px; border-radius: 50%; border: none; background: #fff; color: #232838;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.18); font-weight: 800; font-size: 1.15em; cursor: pointer;
+        width: 36px; height: 36px; border-radius: 50%; border: none; background: #fff; color: #232838;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.18); font-weight: 800; font-size: 0.95em; cursor: pointer;
         font-family: inherit; transition: transform 0.15s;
     }
     .letter-btn:hover:not(:disabled) { transform: scale(1.08); }
     .letter-btn:disabled { opacity: 0.35; cursor: default; }
     .letter-btn.correct { background: #4ade80; color: #fff; }
     .letter-btn.wrong { background: #f87171; color: #fff; animation: keyShake 0.4s; }
-    .hangman-center { display: flex; flex-direction: column; align-items: center; }
-    .hangman-cat { opacity: 0.6; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
-    .hangman-word-tiles { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+    .hangman-cat { opacity: 0.6; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .hangman-word-tiles { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
     .hg-tile {
-        width: 46px; height: 54px; border-radius: 10px; background: #fbbf24; display: flex; align-items: center;
-        justify-content: center; font-weight: 800; font-size: 1.35em; color: #1c2130; box-shadow: 0 4px 10px rgba(0,0,0,0.22);
+        width: 34px; height: 42px; border-radius: 8px; background: #fbbf24; display: flex; align-items: center;
+        justify-content: center; font-weight: 800; font-size: 1.15em; color: #1c2130; box-shadow: 0 3px 8px rgba(0,0,0,0.22);
     }
     .hg-tile.filled { animation: tilePop 0.35s ease; }
-    .hangman-status { opacity: 0.65; margin-top: 14px; font-size: 0.88em; }
-    .hangman-clue-box { margin-top: 20px; font-size: 1.05em; text-align: center; max-width: 480px; line-height: 1.5; }
+    .hangman-status { opacity: 0.65; margin-top: 10px; font-size: 0.82em; }
+    .hangman-clue-box { margin-top: 12px; font-size: 0.95em; text-align: center; max-width: 400px; line-height: 1.45; }
     .hangman-hint-btn {
-        margin-top: 14px; background: #5b5fef; color: #fff; border: none; padding: 9px 20px; border-radius: 999px;
-        font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.9em;
+        margin-top: 10px; background: #5b5fef; color: #fff; border: none; padding: 7px 18px; border-radius: 999px;
+        font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.85em;
     }
     .hangman-hint-box {
-        margin-top: 12px; background: rgba(91,95,239,0.1); border-radius: 14px; padding: 12px 18px;
-        font-size: 0.92em; text-align: left; max-width: 480px; line-height: 1.6;
+        margin-top: 10px; background: rgba(91,95,239,0.1); border-radius: 12px; padding: 10px 14px;
+        font-size: 0.85em; text-align: left; max-width: 400px; line-height: 1.5;
     }
     .hangman-result { text-align: center; color: #1c2130; }
-    .hangman-result h3 { font-size: 1.5em; margin-bottom: 8px; }
+    .hangman-result h3 { font-size: 1.4em; margin-bottom: 6px; }
+    @media (max-width: 640px) {
+        .hangman-layout { flex-direction: column; align-items: center; }
+        .hangman-alphabet { width: 100%; max-width: 280px; }
+    }
 
     /* Paired questions */
     .q-pair { display: flex; flex-direction: column; gap: 20px; }
@@ -556,15 +563,14 @@ function startMatchGame(container, vocabList) {
 }
 
 const HANGMAN_MAX_WRONG = 5;
-const HANGMAN_VOWELS = ['A', 'E', 'I', 'O', 'U'];
-const HANGMAN_CONSONANTS = 'BCDFGHJKLMNPQRSTVWXYZ'.split('');
+const HANGMAN_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 function hangmanPart(inner) {
     return `<g style="transform-box:fill-box;transform-origin:center;animation:partPop .4s ease;">${inner}</g>`;
 }
 
 function hangmanSvg(wrong) {
-    let svg = `<svg viewBox="0 0 240 260" width="220" height="238" style="display:block;margin:0 auto;">
+    let svg = `<svg viewBox="0 0 240 260" width="170" height="184" style="display:block;margin:0 auto;">
         <g stroke="#2c3142" stroke-width="10" stroke-linecap="round" fill="none">
             <line x1="20" y1="240" x2="112" y2="240"/>
             <line x1="56" y1="240" x2="56" y2="18"/>
@@ -612,8 +618,7 @@ function startHangmanGame(container, words, topic) {
                         <div class="hangman-pill">Word ${idx + 1} of ${words.length}</div>
                     </div>
                     <div class="hangman-layout">
-                        <div class="hangman-vowels">${HANGMAN_VOWELS.map(l => keyBtn(l, guessed, letters)).join('')}</div>
-                        <div class="hangman-center">
+                        <div class="hangman-left">
                             ${hangmanSvg(wrong)}
                             <div class="hangman-word-tiles">${tiles}</div>
                             <div class="hangman-status">Wrong guesses: ${wrong} / ${HANGMAN_MAX_WRONG}</div>
@@ -624,7 +629,7 @@ function startHangmanGame(container, words, topic) {
                                 <div><strong>KZ:</strong> ${esc(clue.kz)}</div>
                             </div>
                         </div>
-                        <div class="hangman-consonants">${HANGMAN_CONSONANTS.map(l => keyBtn(l, guessed, letters)).join('')}</div>
+                        <div class="hangman-alphabet">${HANGMAN_ALPHABET.map(l => keyBtn(l, guessed, letters)).join('')}</div>
                     </div>
                 </div>
             `;
