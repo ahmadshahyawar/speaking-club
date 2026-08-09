@@ -109,12 +109,20 @@ $data = [
     .slide-title { text-align: center; font-size: 1.9em; font-weight: 800; margin-bottom: 8px; }
     .slide-title-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
     .slide-title-row .slide-title { margin-bottom: 0; }
-    .playall-btn {
-        background: #5b5fef; color: #fff; border: none; padding: 8px 18px; border-radius: 999px;
-        font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.75em; white-space: nowrap;
+    .tts-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tts-controls button {
+        border: none; padding: 8px 16px; border-radius: 999px; font-weight: 700; cursor: pointer;
+        font-family: inherit; font-size: 0.75em; white-space: nowrap; color: #fff;
     }
-    .playall-btn:hover { background: #4b4fdf; }
-    body.read-aloud-off .playall-btn { display: none; }
+    .tts-controls .btn-play { background: #5b5fef; }
+    .tts-controls .btn-play:hover { background: #4b4fdf; }
+    .tts-controls .btn-stop { background: #ef4444; }
+    .tts-controls .btn-stop:hover { background: #dc2626; }
+    .tts-controls .btn-restart { background: rgba(255,255,255,0.18); }
+    .tts-controls .btn-restart:hover { background: rgba(255,255,255,0.3); }
+    body.read-aloud-off .tts-controls { display: none; }
+    .vocab-card.tts-active { outline: 3px solid #fbbf24; outline-offset: 2px; transform: scale(1.04); transition: transform 0.2s, outline-color 0.2s; }
+    tr.tts-active td { background: rgba(251,191,36,0.25) !important; }
     .level-tag { text-align: center; opacity: 0.7; margin-bottom: 20px; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.1em; }
     .lang-block { margin-bottom: 12px; }
     .lang-block .en { font-size: 1.3em; font-weight: 700; margin-bottom: 8px; }
@@ -345,6 +353,8 @@ if ('speechSynthesis' in window) {
 
 function speak(text) {
     if (!ttsEnabled || !text || !('speechSynthesis' in window)) return;
+    stopSequence();
+    clearVocabHighlight();
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     if (!britishVoice) pickBritishVoice();
@@ -356,27 +366,64 @@ function speak(text) {
 }
 
 // Plays a list of words one by one, with a 2-second pause after each finishes.
-function speakSequence(texts) {
+// onStart(index) fires right before word `index` is spoken; onDone() fires when the
+// sequence finishes or is stopped early.
+let sequenceStopRequested = false;
+let sequenceTimer = null;
+
+function speakSequence(texts, onStart, onDone) {
     if (!ttsEnabled || !('speechSynthesis' in window)) return;
-    speechSynthesis.cancel();
+    stopSequence();
+    sequenceStopRequested = false;
     if (!britishVoice) pickBritishVoice();
     const queue = texts.filter(Boolean);
     let i = 0;
     function next() {
-        if (i >= queue.length) return;
+        if (sequenceStopRequested || i >= queue.length) {
+            if (onDone) onDone();
+            return;
+        }
+        if (onStart) onStart(i);
         const u = new SpeechSynthesisUtterance(queue[i]);
         if (britishVoice) { u.voice = britishVoice; u.lang = britishVoice.lang; }
         else { u.lang = 'en-GB'; }
         u.rate = 0.88;
         u.pitch = 1;
-        u.onend = () => { i++; setTimeout(next, 2000); };
+        u.onend = () => {
+            i++;
+            if (sequenceStopRequested) { if (onDone) onDone(); return; }
+            sequenceTimer = setTimeout(next, 2000);
+        };
         speechSynthesis.speak(u);
     }
     next();
 }
 
+function stopSequence() {
+    sequenceStopRequested = true;
+    if (sequenceTimer) { clearTimeout(sequenceTimer); sequenceTimer = null; }
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+}
+
 function speakBtn(text) {
     return `<button type="button" class="speak-btn" data-speak="${esc(text)}" title="Listen">🔊</button>`;
+}
+
+function clearVocabHighlight() {
+    document.querySelectorAll('.tts-active').forEach(el => el.classList.remove('tts-active'));
+}
+
+function playVocabSequence() {
+    clearVocabHighlight();
+    const cards = document.querySelectorAll('.vocab-card, .content-box table tbody tr');
+    speakSequence(
+        LESSON.vocab.map(w => w.en),
+        i => {
+            clearVocabHighlight();
+            if (cards[i]) cards[i].classList.add('tts-active');
+        },
+        () => clearVocabHighlight()
+    );
 }
 
 document.addEventListener('click', e => {
@@ -386,10 +433,20 @@ document.addEventListener('click', e => {
         speak(speakOne.dataset.speak);
         return;
     }
-    const playAll = e.target.closest('#playAllVocab');
-    if (playAll) {
+    if (e.target.closest('#playAllVocab')) {
         e.stopPropagation();
-        speakSequence(LESSON.vocab.map(w => w.en));
+        playVocabSequence();
+        return;
+    }
+    if (e.target.closest('#stopAllVocab')) {
+        e.stopPropagation();
+        stopSequence();
+        clearVocabHighlight();
+        return;
+    }
+    if (e.target.closest('#restartAllVocab')) {
+        e.stopPropagation();
+        playVocabSequence();
     }
 });
 
@@ -409,7 +466,14 @@ const slides = [];
 const hasImages = LESSON.vocab.some(w => w.img);
 if (hasImages) {
     slides.push(buildSlide(`
-        <div class="slide-title-row"><div class="slide-title">📚 Vocabulary</div><button type="button" class="playall-btn" id="playAllVocab">▶ Read All</button></div>
+        <div class="slide-title-row">
+            <div class="slide-title">📚 Vocabulary</div>
+            <div class="tts-controls">
+                <button type="button" class="btn-play" id="playAllVocab">▶ Read All</button>
+                <button type="button" class="btn-stop" id="stopAllVocab">⏹ Stop</button>
+                <button type="button" class="btn-restart" id="restartAllVocab">🔁 Restart</button>
+            </div>
+        </div>
         <div class="vocab-grid">${LESSON.vocab.map(w => `
             <div class="vocab-card">
                 ${w.img ? `<img class="vocab-photo" src="${esc(w.img)}" alt="${esc(w.en)}">` : '<div class="vocab-photo vocab-photo-empty"></div>'}
@@ -421,7 +485,14 @@ if (hasImages) {
     `, 'wide'));
 } else {
     slides.push(buildSlide(`
-        <div class="slide-title-row"><div class="slide-title">📚 Vocabulary</div><button type="button" class="playall-btn" id="playAllVocab">▶ Read All</button></div>
+        <div class="slide-title-row">
+            <div class="slide-title">📚 Vocabulary</div>
+            <div class="tts-controls">
+                <button type="button" class="btn-play" id="playAllVocab">▶ Read All</button>
+                <button type="button" class="btn-stop" id="stopAllVocab">⏹ Stop</button>
+                <button type="button" class="btn-restart" id="restartAllVocab">🔁 Restart</button>
+            </div>
+        </div>
         <table><thead><tr><th>English</th><th>Русский</th><th>Қазақша</th></tr></thead>
         <tbody>${LESSON.vocab.map(w => `<tr><td>${esc(w.en)}${speakBtn(w.en)}</td><td>${esc(w.ru)}</td><td>${esc(w.kz)}</td></tr>`).join('')}</tbody></table>
     `));

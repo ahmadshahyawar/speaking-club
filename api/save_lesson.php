@@ -12,6 +12,11 @@ if (!$teacher) {
     echo json_encode(['error' => 'Not logged in.']);
     exit;
 }
+if (empty($teacher['is_admin'])) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Admin access only.']);
+    exit;
+}
 
 $input = json_decode(file_get_contents('php://input'), true) ?: [];
 
@@ -93,15 +98,15 @@ $warmupJson = json_encode($warmup, JSON_UNESCAPED_UNICODE);
 $questionsJson = json_encode($questions, JSON_UNESCAPED_UNICODE);
 
 if ($id) {
-    $stmt = db()->prepare('SELECT id FROM lessons WHERE id = ? AND teacher_id = ?');
-    $stmt->execute([$id, $teacher['id']]);
+    $stmt = db()->prepare('SELECT id FROM lessons WHERE id = ?');
+    $stmt->execute([$id]);
     if (!$stmt->fetch()) {
         http_response_code(404);
         echo json_encode(['error' => 'Lesson not found.']);
         exit;
     }
-    $stmt = db()->prepare('UPDATE lessons SET level = ?, topic = ?, vocab = ?, warmup = ?, questions = ?, background_key = ? WHERE id = ? AND teacher_id = ?');
-    $stmt->execute([$level, $topic, $vocabJson, $warmupJson, $questionsJson, $backgroundKey, $id, $teacher['id']]);
+    $stmt = db()->prepare('UPDATE lessons SET level = ?, topic = ?, vocab = ?, warmup = ?, questions = ?, background_key = ? WHERE id = ?');
+    $stmt->execute([$level, $topic, $vocabJson, $warmupJson, $questionsJson, $backgroundKey, $id]);
 } else {
     $stmt = db()->prepare('INSERT INTO lessons (teacher_id, level, topic, vocab, warmup, questions, background_key) VALUES (?, ?, ?, ?, ?, ?, ?)');
     $stmt->execute([$teacher['id'], $level, $topic, $vocabJson, $warmupJson, $questionsJson, $backgroundKey]);

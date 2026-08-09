@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../includes/auth.php';
 
-$teacher = require_login();
+$teacher = require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -11,8 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_csrf();
 
 $id = (int)($_POST['id'] ?? 0);
-$stmt = db()->prepare('SELECT * FROM lessons WHERE id = ? AND teacher_id = ?');
-$stmt->execute([$id, $teacher['id']]);
+$stmt = db()->prepare('SELECT * FROM lessons WHERE id = ?');
+$stmt->execute([$id]);
 $lesson = $stmt->fetch();
 
 $level = 'beginner';

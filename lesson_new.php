@@ -4,14 +4,14 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/levels.php';
 require_once __DIR__ . '/includes/backgrounds.php';
 
-$teacher = require_login();
+$teacher = require_admin();
 
 $lessonId = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $lesson = null;
 
 if ($lessonId) {
-    $stmt = db()->prepare('SELECT * FROM lessons WHERE id = ? AND teacher_id = ?');
-    $stmt->execute([$lessonId, $teacher['id']]);
+    $stmt = db()->prepare('SELECT * FROM lessons WHERE id = ?');
+    $stmt->execute([$lessonId]);
     $lesson = $stmt->fetch();
     if (!$lesson) {
         http_response_code(404);

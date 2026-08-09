@@ -22,7 +22,9 @@ $initial = mb_strtoupper(mb_substr($teacher['display_name'], 0, 1));
         <?php endforeach; ?>
     </div>
 
+    <?php if (!empty($teacher['is_admin'])): ?>
     <a class="sidebar-cta" href="lesson_new.php?level=<?= urlencode($activeLevel ?? 'beginner') ?>">+ New Lesson</a>
+    <?php endif; ?>
 
     <div class="sidebar-section">
         <div class="sidebar-label">Account</div>

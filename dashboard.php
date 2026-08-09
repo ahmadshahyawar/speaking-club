@@ -11,8 +11,8 @@ if (!array_key_exists($level, $levels)) {
     $level = 'beginner';
 }
 
-$stmt = db()->prepare('SELECT id, topic, background_key, created_at FROM lessons WHERE teacher_id = ? AND level = ? ORDER BY created_at DESC');
-$stmt->execute([$teacher['id'], $level]);
+$stmt = db()->prepare('SELECT id, topic, background_key, created_at FROM lessons WHERE level = ? ORDER BY created_at ASC, id ASC');
+$stmt->execute([$level]);
 $lessons = $stmt->fetchAll();
 
 $deleted = isset($_GET['deleted']);
@@ -37,7 +37,9 @@ $active = 'level:' . $level;
                 <h1><?= h($levels[$level]) ?> Lessons</h1>
                 <p><?= count($lessons) ?> lesson<?= count($lessons) === 1 ? '' : 's' ?> in this level</p>
             </div>
+            <?php if (!empty($teacher['is_admin'])): ?>
             <a class="btn" href="lesson_new.php?level=<?= urlencode($level) ?>">+ New Lesson</a>
+            <?php endif; ?>
         </div>
 
         <?php if ($saved): ?><div class="success-msg">Lesson saved.</div><?php endif; ?>
@@ -46,7 +48,9 @@ $active = 'level:' . $level;
         <?php if (!$lessons): ?>
             <div class="empty-state">
                 <p>No <?= h($levels[$level]) ?> lessons yet.</p>
+                <?php if (!empty($teacher['is_admin'])): ?>
                 <a class="btn" href="lesson_new.php?level=<?= urlencode($level) ?>">Create your first lesson</a>
+                <?php endif; ?>
             </div>
         <?php else: ?>
             <div class="lesson-grid">
@@ -58,6 +62,8 @@ $active = 'level:' . $level;
                             <div class="meta"><?= h(date('M j, Y', strtotime($l['created_at']))) ?></div>
                             <div class="actions">
                                 <a class="btn btn-info btn-sm" href="present.php?id=<?= (int)$l['id'] ?>" target="_blank">▶ Present</a>
+                                <a class="btn btn-outline btn-sm" href="api/lesson_pdf.php?id=<?= (int)$l['id'] ?>">⬇ PDF</a>
+                                <?php if (!empty($teacher['is_admin'])): ?>
                                 <a class="btn btn-outline btn-sm" href="lesson_new.php?id=<?= (int)$l['id'] ?>">✎ Edit</a>
                                 <form method="post" action="api/duplicate_lesson.php" style="display:inline;">
                                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
@@ -69,6 +75,7 @@ $active = 'level:' . $level;
                                     <input type="hidden" name="id" value="<?= (int)$l['id'] ?>">
                                     <button type="submit" class="btn btn-danger btn-sm">🗑</button>
                                 </form>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
