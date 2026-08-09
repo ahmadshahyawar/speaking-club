@@ -270,7 +270,7 @@ $data = [
 </style>
 </head>
 <body>
-<div class="bg-stage bg-<?= htmlspecialchars($data['background_key'], ENT_QUOTES, 'UTF-8') ?>"></div>
+<div class="bg-stage bg-level-<?= htmlspecialchars($data['level'], ENT_QUOTES, 'UTF-8') ?>"></div>
 
 <div class="topbar">
     <div class="title-block">
