@@ -1,44 +1,218 @@
 <?php
 declare(strict_types=1);
 
-const HANGMAN_STOPWORDS = ['the','and','that','with','your','have','has','had','having','this','what','does','do','did','you','are','is','was','were','will','would','could','should','can','cant','they','them','their','there','here','when','where','why','how','who','which','more','most','some','any','all','each','other','than','then','also','just','only','very','much','many','been','being','into','from','out','upon','over','under','between','about','after','before','during','without','within','again','ever','never','always','sometimes','often','usually','really','actually','maybe','perhaps','personal','favorite','favourite','opinion','experience','think','feel','believe','remember','know','want','like','love','enjoy','prefer','share','talk','talking','discuss','describe','explain','mention','consider','imagine','suppose','something','someone','anything','anyone','everything','everyone','nothing','things','thing','people','person','life','time','times','make','made','making','doing','done','going','goes','went','gone','because','since','while','though','although','still','even','such','same','different','important','interesting','difficult','easy','good','bad','best','worst','first','last','next','new','old','let','lets',"let's",'yourself','yours','myself','ourselves','themselves'];
+// Curated word -> definitional clue bank. Hangman words are drawn from
+// here (never from the lesson's own vocab list) so every clue actually
+// describes the word instead of just showing it in a random sentence.
+const HANGMAN_CLUES = [
+    'mother' => "This is the woman who gave birth to you or raised you.",
+    'father' => "This is the man who is your parent.",
+    'sister' => "This is a girl who has the same parents as you.",
+    'brother' => "This is a boy who has the same parents as you.",
+    'grandmother' => "This is your mother's or father's mother.",
+    'grandfather' => "This is your mother's or father's father.",
+    'cousin' => "This is the child of your aunt or uncle.",
+    'uncle' => "This is your father's or mother's brother.",
+    'aunt' => "This is your father's or mother's sister.",
+    'family' => "This is the group of people related to you, like parents and children.",
+    'baby' => "This is a very young child who cannot walk or talk yet.",
+    'wife' => "This is a married woman, in relation to her husband.",
+    'husband' => "This is a married man, in relation to his wife.",
+    'friend' => "This is a person you like and enjoy spending time with.",
+    'neighbor' => "This is a person who lives next to you or near you.",
+    'stranger' => "This is a person you have never met before.",
+    'chicken' => "This is meat and people eat it a lot.",
+    'bread' => "This is baked from flour and eaten every day, often with butter.",
+    'rice' => "These are small white grains, very common in Asian cooking.",
+    'apple' => "This round fruit, often red or green, is said to keep the doctor away.",
+    'banana' => "This is a long yellow fruit that monkeys love to eat.",
+    'orange' => "This round citrus fruit shares its name with a color.",
+    'potato' => "This vegetable grows underground and can be fried or boiled.",
+    'tomato' => "This red fruit is often used in salads and sauces.",
+    'cheese' => "This is made from milk and is often melted on pizza.",
+    'butter' => "This soft yellow food is spread on bread.",
+    'sugar' => "This white substance makes your tea or coffee sweet.",
+    'salt' => "This white substance is sprinkled on food to add flavor.",
+    'milk' => "This white drink comes from cows and is good for your bones.",
+    'coffee' => "This hot dark drink helps people wake up in the morning.",
+    'juice' => "This sweet drink is made by pressing fruit.",
+    'soup' => "This warm liquid food is often eaten with a spoon.",
+    'salad' => "This dish is made of raw vegetables mixed together.",
+    'cake' => "This sweet dessert is often eaten on birthdays.",
+    'sandwich' => "This food has fillings placed between two slices of bread.",
+    'breakfast' => "This is the first meal you eat in the morning.",
+    'vegetable' => "This healthy food grows in a garden, like carrots or spinach.",
+    'fruit' => "This sweet food grows on trees or plants, like apples or bananas.",
+    'dog' => "This animal is often called a person's best friend and loves to bark.",
+    'cat' => "This small animal likes to chase mice and says \"meow\".",
+    'horse' => "This large animal can be ridden and likes to run fast.",
+    'cow' => "This farm animal gives us milk.",
+    'sheep' => "This farm animal has wool and says \"baa\".",
+    'lion' => "This big wild cat is known as the king of the jungle.",
+    'tiger' => "This large wild cat has orange and black stripes.",
+    'elephant' => "This is the biggest land animal, and it has a long trunk.",
+    'monkey' => "This animal loves bananas and can climb trees quickly.",
+    'rabbit' => "This small animal has long ears and hops around.",
+    'snake' => "This long animal has no legs and can be dangerous.",
+    'bear' => "This large wild animal likes honey and sleeps through winter.",
+    'duck' => "This bird swims on water and says \"quack\".",
+    'spider' => "This small creature has eight legs and spins webs.",
+    'butterfly' => "This colorful insect starts life as a caterpillar.",
+    'rain' => "This is water that falls from the clouds.",
+    'snow' => "This is soft, white, and cold, and falls in winter.",
+    'sun' => "This bright object in the sky gives us light and heat.",
+    'wind' => "This is moving air that can blow your hat away.",
+    'cloud' => "This white or gray shape floats in the sky before it rains.",
+    'storm' => "This is very bad weather with strong wind and rain.",
+    'weather' => "This word describes whether it is sunny, rainy, or cold outside.",
+    'morning' => "This is the part of the day right after you wake up.",
+    'afternoon' => "This is the part of the day between lunch and evening.",
+    'evening' => "This is the part of the day before night, after work or school.",
+    'tomorrow' => "This is the day right after today.",
+    'yesterday' => "This is the day right before today.",
+    'calendar' => "This tool shows you all the days, weeks, and months of the year.",
+    'schedule' => "This is a plan that shows what you will do and when.",
+    'school' => "This is a place where children go to learn.",
+    'hospital' => "This is a place where sick people go to get better.",
+    'restaurant' => "This is a place where you pay to eat a meal.",
+    'airport' => "This is a place where airplanes take off and land.",
+    'market' => "This is a place where people buy and sell fresh food.",
+    'library' => "This is a quiet place full of books you can borrow.",
+    'beach' => "This is a sandy place next to the sea.",
+    'mountain' => "This is a very tall landform, often covered in snow at the top.",
+    'forest' => "This is a large area full of trees.",
+    'bridge' => "This structure lets you cross a river or road.",
+    'museum' => "This is a building where old and interesting objects are shown.",
+    'hotel' => "This is a place where you pay to sleep when you travel.",
+    'office' => "This is a place where people go to do business work.",
+    'table' => "This furniture has four legs and you eat your meals on it.",
+    'chair' => "This piece of furniture is made for one person to sit on.",
+    'window' => "This lets light into your room and you can see outside through it.",
+    'door' => "You open and close this to enter or leave a room.",
+    'kitchen' => "This room in the house is used for cooking food.",
+    'bedroom' => "This is the room in a house where you sleep.",
+    'mirror' => "You look into this to see your own face.",
+    'refrigerator' => "This kitchen machine keeps your food cold.",
+    'shirt' => "You wear this on the top part of your body.",
+    'shoes' => "You wear these on your feet to walk outside.",
+    'jacket' => "You wear this over your clothes when it is cold outside.",
+    'hat' => "You wear this on top of your head.",
+    'gloves' => "You wear these to keep your hands warm.",
+    'head' => "This is the top part of your body, where your brain is.",
+    'hand' => "You use this part of your body to hold things.",
+    'eye' => "You use this part of your body to see.",
+    'ear' => "You use this part of your body to hear.",
+    'nose' => "You use this part of your body to smell.",
+    'mouth' => "You use this part of your body to eat and speak.",
+    'heart' => "This organ pumps blood through your body.",
+    'happy' => "This is how you feel when something good happens to you.",
+    'sad' => "This is how you feel when you want to cry.",
+    'angry' => "This is how you feel when something makes you very upset.",
+    'tired' => "This is how you feel when you need to sleep.",
+    'hungry' => "This is how you feel when your stomach needs food.",
+    'thirsty' => "This is how you feel when your body needs water.",
+    'scared' => "This is how you feel when something frightens you.",
+    'excited' => "This is how you feel right before something fun happens.",
+    'nervous' => "This is how you feel before a big test or interview.",
+    'proud' => "This is how you feel when you achieve something great.",
+    'teacher' => "This person helps students learn in a classroom.",
+    'doctor' => "This person helps sick people feel better.",
+    'nurse' => "This person works in a hospital and helps doctors care for patients.",
+    'engineer' => "This person designs and builds machines, roads, or buildings.",
+    'farmer' => "This person grows crops and raises animals for a living.",
+    'driver' => "This person controls a car, bus, or truck.",
+    'chef' => "This person cooks food in a restaurant kitchen.",
+    'artist' => "This person creates paintings or other beautiful works.",
+    'lawyer' => "This person helps people with legal problems in court.",
+    'pilot' => "This person flies an airplane.",
+    'car' => "This vehicle has four wheels and you drive it on roads.",
+    'bus' => "This large vehicle carries many passengers around a city.",
+    'train' => "This long vehicle runs on tracks and carries many people.",
+    'bicycle' => "This two-wheeled vehicle is powered by pedaling with your legs.",
+    'airplane' => "This vehicle flies through the sky and carries passengers far away.",
+    'boat' => "This vehicle travels on water.",
+    'taxi' => "This is a car you can pay to take you somewhere.",
+    'music' => "This is sounds arranged to be pleasant, like songs.",
+    'dance' => "This means moving your body to the rhythm of music.",
+    'football' => "This popular sport is played with a round ball and two teams.",
+    'swimming' => "This activity means moving your body through water.",
+    'painting' => "This hobby uses a brush and colors to create pictures.",
+    'reading' => "This hobby means looking at words in a book to understand a story.",
+    'cooking' => "This activity means preparing food to eat.",
+    'photography' => "This hobby means taking pictures with a camera.",
+    'chess' => "This is a strategy board game played with kings and queens.",
+    'camping' => "This activity means sleeping outdoors, often in a tent.",
+    'fishing' => "This activity means trying to catch fish from the water.",
+    'hiking' => "This activity means walking long distances in nature, often on hills.",
+    'phone' => "You use this device to call or text people.",
+    'computer' => "You use this machine to work, browse the internet, or play games.",
+    'internet' => "This is the network that connects computers around the world.",
+    'camera' => "You use this device to take photos.",
+    'television' => "You watch shows and movies on this device.",
+    'password' => "You need this secret code to log into your account.",
+    'battery' => "This device stores power for your phone or other devices.",
+    'tree' => "This tall plant has a trunk, branches, and leaves.",
+    'flower' => "This colorful part of a plant often smells nice.",
+    'river' => "This is a long body of water that flows to the sea.",
+    'ocean' => "This is a huge body of salt water.",
+    'sky' => "This is what you see above you, blue in the day and dark at night.",
+    'star' => "This bright object appears in the night sky.",
+    'moon' => "This object orbits the earth and is visible at night.",
+    'sand' => "These are the tiny grains you find on a beach.",
+    'expensive' => "This word describes something that costs a lot of money.",
+    'cheap' => "This word describes something that costs very little money.",
+    'beautiful' => "This word describes something that is very pleasant to look at.",
+    'delicious' => "This word describes food that tastes very good.",
+    'dangerous' => "This word describes something that could hurt you.",
+    'healthy' => "This word describes something good for your body.",
+    'crowded' => "This word describes a place that is full of people.",
+    'quiet' => "This word describes a place with very little noise.",
+    'strong' => "This word describes someone with a lot of physical power.",
+    'travel' => "This means going to different places, often far from home.",
+    'study' => "This means spending time learning something.",
+    'clean' => "This means making something free of dirt.",
+    'drive' => "This means controlling a car to move it.",
+    'swim' => "This means moving your body through water.",
+    'sing' => "This means using your voice to make music.",
+    'listen' => "This means paying close attention with your ears.",
+    'smile' => "This means turning up the corners of your mouth to show happiness.",
+    'laugh' => "This means making a sound when something is funny.",
+    'help' => "This means giving support to someone who needs it.",
+    'learn' => "This means gaining new knowledge or a skill.",
+    'teach' => "This means helping someone else learn something.",
+    'build' => "This means putting materials together to make something new.",
+];
 
 function extract_hangman_words(string $warmupEn, array $questionsEn, array $vocabWords, int $seed): array {
-    $stop = array_flip(HANGMAN_STOPWORDS);
-    $vocabLower = array_map('mb_strtolower', $vocabWords);
+    $vocabLower = array_flip(array_map('mb_strtolower', $vocabWords));
 
-    $sentences = [];
-    foreach (array_merge([$warmupEn], $questionsEn) as $text) {
-        foreach (preg_split('/(?<=[.?!])\s+/', trim((string)$text)) as $s) {
-            $s = trim($s);
-            if ($s !== '') $sentences[] = $s;
-        }
+    $text = mb_strtolower($warmupEn . ' ' . implode(' ', $questionsEn));
+    preg_match_all("/[a-z']+/", $text, $m);
+    $mentioned = array_flip($m[0]);
+
+    $available = [];
+    foreach (HANGMAN_CLUES as $word => $clue) {
+        if (isset($vocabLower[$word])) continue;
+        $available[$word] = $clue;
     }
 
-    $candidates = [];
-    foreach ($sentences as $sentence) {
-        preg_match_all("/[A-Za-z']+/", $sentence, $m);
-        foreach ($m[0] as $word) {
-            $lw = mb_strtolower($word);
-            if (mb_strlen($lw) < 4) continue;
-            if (isset($stop[$lw])) continue;
-            if (in_array($lw, $vocabLower, true)) continue;
-            if (!isset($candidates[$lw])) {
-                $candidates[$lw] = $sentence;
-            }
-        }
-    }
+    $mentionedWords = array_values(array_intersect_key($available, $mentioned));
+    $mentionedKeys = array_keys(array_intersect_key($available, $mentioned));
 
-    $keys = array_keys($candidates);
     mt_srand($seed);
-    shuffle($keys);
-    $chosen = array_slice($keys, 0, 5);
+    shuffle($mentionedKeys);
+    $chosen = array_slice($mentionedKeys, 0, 5);
+
+    if (count($chosen) < 5) {
+        $remaining = array_values(array_diff(array_keys($available), $chosen));
+        shuffle($remaining);
+        $needed = 5 - count($chosen);
+        $chosen = array_merge($chosen, array_slice($remaining, 0, $needed));
+    }
 
     $result = [];
-    foreach ($chosen as $w) {
-        $sentence = $candidates[$w];
-        $clue = preg_replace('/\b' . preg_quote($w, '/') . '\b/i', str_repeat('▢', mb_strlen($w)), $sentence);
-        $result[] = ['word' => $w, 'clue' => $clue];
+    foreach ($chosen as $word) {
+        $result[] = ['word' => $word, 'clue' => $available[$word]];
     }
     return $result;
 }

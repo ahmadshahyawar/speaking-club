@@ -521,6 +521,26 @@ function startMatchGame(container, vocabList) {
     renderRound();
 }
 
+const HANGMAN_MAX_WRONG = 5;
+
+function hangmanSvg(wrong) {
+    let svg = `<svg viewBox="0 0 200 220" width="180" height="198" style="display:block;margin:0 auto 16px;">
+        <g stroke="#fff" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.85">
+            <line x1="18" y1="204" x2="92" y2="204"/>
+            <line x1="45" y1="204" x2="45" y2="16"/>
+            <line x1="45" y1="16" x2="140" y2="16"/>
+            <line x1="140" y1="16" x2="140" y2="42"/>
+        </g>`;
+    const p = '<g stroke="#ff8a5c" stroke-width="8" stroke-linecap="round" fill="none">';
+    if (wrong >= 1) svg += `${p}<circle cx="140" cy="60" r="18" stroke-width="7"/></g>`;
+    if (wrong >= 2) svg += `${p}<line x1="140" y1="78" x2="140" y2="136"/></g>`;
+    if (wrong >= 3) svg += `${p}<line x1="140" y1="94" x2="112" y2="118"/></g>`;
+    if (wrong >= 4) svg += `${p}<line x1="140" y1="94" x2="168" y2="118"/></g>`;
+    if (wrong >= 5) svg += `${p}<line x1="140" y1="136" x2="115" y2="178"/><line x1="140" y1="136" x2="165" y2="178"/></g>`;
+    svg += `</svg>`;
+    return svg;
+}
+
 function startHangmanGame(container, words) {
     if (!words || !words.length) {
         container.innerHTML = `<p>No hangman words available for this lesson.</p>`;
@@ -535,15 +555,15 @@ function startHangmanGame(container, words) {
         const letters = word.toUpperCase().split('');
         const guessed = new Set();
         let wrong = 0;
-        const maxWrong = 6;
 
         function draw() {
             const display = letters.map(l => guessed.has(l) ? l : '_').join(' ');
             container.innerHTML = `
                 <div class="hangman-cat">Word ${idx + 1} of ${words.length}</div>
+                ${hangmanSvg(wrong)}
                 <div class="hangman-clue">${esc(clue)}</div>
                 <div class="hangman-word">${display}</div>
-                <div class="hangman-status">Mistakes: ${wrong} / ${maxWrong}</div>
+                <div class="hangman-status">Wrong guesses: ${wrong} / ${HANGMAN_MAX_WRONG}</div>
                 <div class="hangman-keys">${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l => `<button type="button" class="hg-key" data-l="${l}" ${guessed.has(l) ? 'disabled' : ''}>${l}</button>`).join('')}</div>
             `;
             container.querySelectorAll('.hg-key').forEach(btn => {
@@ -551,18 +571,19 @@ function startHangmanGame(container, words) {
                     const l = btn.dataset.l;
                     guessed.add(l);
                     if (!letters.includes(l)) wrong++;
-                    if (wrong >= maxWrong) { finishWord(false); return; }
-                    if (letters.every(l2 => guessed.has(l2))) { finishWord(true); return; }
+                    if (wrong >= HANGMAN_MAX_WRONG) { finishWord(false, wrong); return; }
+                    if (letters.every(l2 => guessed.has(l2))) { finishWord(true, wrong); return; }
                     draw();
                 });
             });
         }
 
-        function finishWord(won) {
+        function finishWord(won, wrongCount) {
             solved += won ? 1 : 0;
             container.innerHTML = `
+                ${hangmanSvg(wrongCount)}
                 <div class="hangman-result">
-                    <h3>${won ? '🎉 Correct!' : '😅 Out of tries!'}</h3>
+                    <h3>${won ? '🎉 Correct!' : '💀 He got hanged!'}</h3>
                     <p>The word was <strong>${esc(word.toUpperCase())}</strong></p>
                     <button type="button" class="restart-btn" id="hgNext">${idx + 1 < words.length ? 'Next word' : 'See results'}</button>
                 </div>
