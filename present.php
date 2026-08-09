@@ -72,11 +72,11 @@ $data = [
 
     .slider-viewport { position: relative; z-index: 2; width: 100%; height: 100vh; overflow: hidden; }
     .slider-track { display: flex; height: 100%; transition: transform 0.5s cubic-bezier(0.65, 0, 0.35, 1); }
-    .slide { min-width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 115px 30px 110px; overflow-y: auto; }
+    .slide { min-width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 100px 30px 90px; overflow-y: auto; }
 
     .content-box {
         background: rgba(0,0,0,0.4); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-        padding: 34px; border-radius: 20px; box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+        padding: 24px; border-radius: 20px; box-shadow: 0 8px 40px rgba(0,0,0,0.5);
         border: 1px solid rgba(255,255,255,0.18); max-width: 820px; width: 100%;
     }
     table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; }
@@ -84,18 +84,18 @@ $data = [
     td { padding: 12px 13px; border-bottom: 1px solid rgba(255,255,255,0.14); }
     tr:nth-child(even) td { background: rgba(255,255,255,0.04); }
     .content-box.wide { max-width: 1100px; }
-    .vocab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 18px; }
+    .vocab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
     .vocab-card {
-        background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.16); border-radius: 16px;
-        padding: 12px; text-align: center;
+        background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.16); border-radius: 14px;
+        padding: 9px; text-align: center;
     }
     .vocab-photo {
-        width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px;
-        margin-bottom: 10px; box-shadow: 0 6px 18px rgba(0,0,0,0.45); display: block;
+        width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px;
+        margin-bottom: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.45); display: block;
     }
     .vocab-photo-empty { background: rgba(255,255,255,0.08); }
-    .vocab-en { font-weight: 700; font-size: 1.05em; margin-bottom: 4px; }
-    .vocab-tr { font-size: 0.88em; opacity: 0.82; line-height: 1.4; }
+    .vocab-en { font-weight: 700; font-size: 0.98em; margin-bottom: 3px; }
+    .vocab-tr { font-size: 0.83em; opacity: 0.82; line-height: 1.3; }
 
     .slide-title { text-align: center; font-size: 1.7em; font-weight: 800; margin-bottom: 8px; }
     .slide-title-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
