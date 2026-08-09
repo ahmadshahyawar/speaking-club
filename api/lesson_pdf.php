@@ -56,6 +56,8 @@ const LEVEL_GRADIENTS = [
 class LessonPDF extends TCPDF {
     public string $topicLine = '';
     public string $levelLabel = '';
+    public string $matchUrl = '';
+    public string $hangmanUrl = '';
     /** @var array{0: array{0:int,1:int,2:int}, 1: array{0:int,1:int,2:int}} */
     public array $bgColors = [[91, 95, 239], [118, 75, 162]];
 
@@ -67,15 +69,24 @@ class LessonPDF extends TCPDF {
 
         $this->SetTextColor(255, 255, 255);
         $this->SetFont('dejavusans', 'B', 14);
-        $this->SetXY(15, 10);
+        $this->SetXY(15, 9);
         $this->Cell($pw - 30, 7, $this->topicLine, 0, 1, 'C');
         $this->SetFont('dejavusans', '', 8);
         $this->SetX(15);
         $this->Cell($pw - 30, 5, $this->levelLabel, 0, 1, 'C');
+
+        if ($this->matchUrl && $this->hangmanUrl) {
+            $this->SetFont('dejavusans', 'B', 9);
+            $this->SetTextColorArray([255, 255, 255]);
+            $this->SetXY(15, 21.5);
+            $this->Cell(($pw - 30) / 2, 5, 'Play Match Online >', 0, 0, 'C', false, $this->matchUrl);
+            $this->Cell(($pw - 30) / 2, 5, 'Play Hangman Online >', 0, 1, 'C', false, $this->hangmanUrl);
+        }
+
         $this->SetDrawColorArray([255, 255, 255]);
         $this->SetLineWidth(0.2);
-        $this->Line(15, 24, $pw - 15, 24);
-        $this->SetY(30);
+        $this->Line(15, 29, $pw - 15, 29);
+        $this->SetY(34);
     }
 
     public function Footer(): void {
@@ -86,14 +97,20 @@ class LessonPDF extends TCPDF {
     }
 }
 
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'omarshoaibyawar.com';
+$baseUrl = $scheme . '://' . $host;
+
 $pdf = new LessonPDF('P', 'mm', 'A4', true, 'UTF-8', false);
 $pdf->topicLine = $lesson['topic'];
 $pdf->levelLabel = strtoupper(str_replace('-', ' ', $lesson['level']));
 $pdf->bgColors = LEVEL_GRADIENTS[$lesson['level']] ?? $pdf->bgColors;
+$pdf->matchUrl = $baseUrl . '/game.php?id=' . $lesson['id'] . '&type=match';
+$pdf->hangmanUrl = $baseUrl . '/game.php?id=' . $lesson['id'] . '&type=hangman';
 $pdf->SetCreator('Speaking Club');
 $pdf->SetAuthor('Speaking Club');
 $pdf->SetTitle($lesson['topic']);
-$pdf->SetMargins(15, 30, 15);
+$pdf->SetMargins(15, 34, 15);
 $pdf->SetAutoPageBreak(false);
 $pdf->SetPrintHeader(false);
 $pdf->SetPrintFooter(true);
