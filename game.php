@@ -103,7 +103,7 @@ $data = [
     }
     .speak-btn:hover { background: rgba(255,255,255,0.32); }
 
-    .game-wrap { max-width: 780px; width: 100%; }
+    .game-wrap { position: relative; z-index: 2; max-width: 780px; width: 100%; }
     .restart-btn {
         display: block; margin: 20px auto 0; background: #5b5fef; font-family: inherit;
         color: #fff; border: none; padding: 11px 26px; border-radius: 999px; cursor: pointer; font-weight: 700;
