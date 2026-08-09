@@ -21,7 +21,6 @@ $isPictureLevel = in_array($lesson['level'], ['beginner', 'elementary'], true);
 $vocab = json_decode($lesson['vocab'], true);
 $warmup = json_decode($lesson['warmup'], true);
 $questions = json_decode($lesson['questions'], true);
-$hangman = [];
 
 if ($isPictureLevel && $vocab) {
     $words = array_map(static fn($w) => mb_strtolower(trim($w['en'])), $vocab);
@@ -39,14 +38,15 @@ if ($isPictureLevel && $vocab) {
         }
     }
     unset($w);
-
-    $hangman = extract_hangman_words(
-        (string)($warmup['en'] ?? ''),
-        array_column($questions, 'en'),
-        array_column($vocab, 'en'),
-        (int)$lesson['id']
-    );
 }
+
+// Hangman words: available on every level now.
+$hangman = extract_hangman_words(
+    (string)($warmup['en'] ?? ''),
+    array_column($questions, 'en'),
+    array_column($vocab ?: [], 'en'),
+    (int)$lesson['id']
+);
 
 $data = [
     'topic' => $lesson['topic'],
@@ -107,6 +107,14 @@ $data = [
     .vocab-tr { font-size: 0.92em; opacity: 0.82; line-height: 1.4; }
 
     .slide-title { text-align: center; font-size: 1.9em; font-weight: 800; margin-bottom: 8px; }
+    .slide-title-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
+    .slide-title-row .slide-title { margin-bottom: 0; }
+    .playall-btn {
+        background: #5b5fef; color: #fff; border: none; padding: 8px 18px; border-radius: 999px;
+        font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.75em; white-space: nowrap;
+    }
+    .playall-btn:hover { background: #4b4fdf; }
+    body.read-aloud-off .playall-btn { display: none; }
     .level-tag { text-align: center; opacity: 0.7; margin-bottom: 20px; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.1em; }
     .lang-block { margin-bottom: 12px; }
     .lang-block .en { font-size: 1.3em; font-weight: 700; margin-bottom: 8px; }
@@ -128,51 +136,34 @@ $data = [
     .dot-btn { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.35); border: none; cursor: pointer; padding: 0; transition: background 0.2s, transform 0.2s; }
     .dot-btn.active { background: #fff; transform: scale(1.3); }
 
-    .game-menu { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-    .game-menu button {
-        background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: #fff;
-        padding: 20px 30px; border-radius: 14px; cursor: pointer; font-size: 1.1em; font-weight: 700; font-family: inherit;
+    /* Text-to-speech toggle — always top-right, on every level. */
+    .tts-toggle {
+        position: fixed; top: 18px; right: 26px; z-index: 23; display: flex; align-items: center; gap: 8px;
+        background: rgba(0,0,0,0.35); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
+        color: #fff; padding: 7px 14px 7px 12px; border-radius: 999px; font-size: 0.85em; font-weight: 700;
     }
-    .game-menu button:hover { background: rgba(255,255,255,0.28); }
-    .lang-toggle { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
-    .lang-toggle button { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 6px 16px; border-radius: 999px; cursor: pointer; font-size: 0.85em; font-family: inherit; }
-    .lang-toggle button.active { background: #fff; color: #333; }
+    .tts-toggle .switch { position: relative; width: 36px; height: 20px; flex: 0 0 auto; }
+    .tts-toggle .switch input { opacity: 0; width: 0; height: 0; }
+    .tts-toggle .slider {
+        position: absolute; inset: 0; background: rgba(255,255,255,0.3); border-radius: 999px; cursor: pointer; transition: background 0.2s;
+    }
+    .tts-toggle .slider::before {
+        content: ''; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px; background: #fff;
+        border-radius: 50%; transition: transform 0.2s;
+    }
+    .tts-toggle input:checked + .slider { background: #5b5fef; }
+    .tts-toggle input:checked + .slider::before { transform: translateX(16px); }
 
-    .memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 560px; margin: 0 auto; }
-    .memory-card {
-        aspect-ratio: 1; border-radius: 10px; border: 1px solid rgba(255,255,255,0.3);
-        background: rgba(255,255,255,0.12); color: #fff; font-size: 0.85em; font-weight: 700; font-family: inherit;
-        display: flex; align-items: center; justify-content: center; text-align: center; padding: 6px;
-        cursor: pointer; transition: background 0.2s;
+    .speak-btn {
+        border: none; background: rgba(255,255,255,0.18); color: #fff; width: 26px; height: 26px; border-radius: 50%;
+        cursor: pointer; font-size: 0.8em; display: inline-flex; align-items: center; justify-content: center;
+        margin-left: 6px; vertical-align: middle; flex: 0 0 auto; font-family: inherit;
     }
-    .memory-card:hover { background: rgba(255,255,255,0.22); }
-    .memory-card.revealed { background: rgba(91,95,239,0.55); cursor: default; }
-    .memory-card.matched { background: rgba(22,163,74,0.55); cursor: default; }
-    .memory-status { text-align: center; margin-top: 14px; opacity: 0.85; }
-    .memory-complete { text-align: center; }
-    .memory-complete h3 { margin-bottom: 10px; }
-
-    .quiz-question { font-size: 1.2em; font-weight: 700; margin-bottom: 6px; text-align: center; }
-    .quiz-progress { text-align: center; opacity: 0.7; font-size: 0.85em; margin-bottom: 18px; }
-    .quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 520px; margin: 0 auto; }
-    .quiz-option {
-        background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-family: inherit;
-        padding: 14px; border-radius: 10px; cursor: pointer; font-size: 1em; text-align: center;
-    }
-    .quiz-option:hover:not(:disabled) { background: rgba(255,255,255,0.22); }
-    .quiz-option.correct { background: rgba(22,163,74,0.7); border-color: #16a34a; }
-    .quiz-option.incorrect { background: rgba(220,38,38,0.7); border-color: #dc2626; }
-    .quiz-option:disabled { cursor: default; opacity: 0.85; }
-    .quiz-score { text-align: center; margin-top: 16px; opacity: 0.85; }
-    .quiz-complete { text-align: center; }
-    .quiz-complete h3 { margin-bottom: 8px; font-size: 1.4em; }
-    .quiz-next-btn, .memory-replay-btn {
-        display: block; margin: 18px auto 0; background: #5b5fef; font-family: inherit;
-        color: #fff; border: none; padding: 11px 26px; border-radius: 999px; cursor: pointer; font-weight: 700;
-    }
+    .speak-btn:hover { background: rgba(255,255,255,0.32); }
+    body.read-aloud-off .speak-btn { display: none; }
 
     /* Persistent top-right game links (beginner/elementary) — stay above the overlay so either game is reachable at any time. */
-    .game-links { position: fixed; top: 18px; right: 26px; z-index: 22; display: flex; gap: 10px; }
+    .game-links { position: fixed; top: 64px; right: 26px; z-index: 22; display: flex; gap: 10px; }
     .game-links button {
         background: rgba(0,0,0,0.35); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
         color: #fff; padding: 10px 18px; border-radius: 999px; cursor: pointer; font-weight: 700; font-size: 0.9em; font-family: inherit;
@@ -187,7 +178,7 @@ $data = [
     }
     .game-overlay[hidden] { display: none; }
     .overlay-close {
-        position: fixed; top: 68px; right: 26px; z-index: 21; width: 38px; height: 38px; border-radius: 50%;
+        position: fixed; top: 114px; right: 26px; z-index: 21; width: 38px; height: 38px; border-radius: 50%;
         border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.12); color: #fff; font-size: 1.1em;
         cursor: pointer; display: flex; align-items: center; justify-content: center;
     }
@@ -286,7 +277,14 @@ $data = [
     </div>
 </div>
 
-<?php if ($isPictureLevel): ?>
+<div class="tts-toggle" id="ttsToggle">
+    <span>🔊 UK Voice</span>
+    <label class="switch">
+        <input type="checkbox" id="ttsCheckbox" checked>
+        <span class="slider"></span>
+    </label>
+</div>
+
 <div class="game-links" id="gameLinks">
     <button type="button" id="btnMatch">🎯 Match</button>
     <button type="button" id="btnHangman">🔠 Hangman</button>
@@ -295,7 +293,6 @@ $data = [
     <button class="overlay-close" id="overlayClose">✕</button>
     <div class="overlay-body" id="overlayBody"></div>
 </div>
-<?php endif; ?>
 
 <div class="slider-viewport">
     <div class="slider-track" id="sliderTrack"></div>
@@ -305,8 +302,6 @@ $data = [
 <button class="nav-arrow next" id="nextBtn">›</button>
 <div class="dots" id="dots"></div>
 
-<script src="<?= av('assets/js/game-memory.js') ?>"></script>
-<script src="<?= av('assets/js/game-quiz.js') ?>"></script>
 <script>
 const LESSON = <?= json_encode($data, JSON_UNESCAPED_UNICODE) ?>;
 
@@ -326,6 +321,87 @@ function buildSlide(innerHtml, extraClass) {
     return slide;
 }
 
+// Text-to-speech: British English voice, medium/clear rate.
+let ttsEnabled = localStorage.getItem('scReadAloud') !== 'off';
+document.body.classList.toggle('read-aloud-off', !ttsEnabled);
+
+let britishVoice = null;
+function pickBritishVoice() {
+    if (!('speechSynthesis' in window)) return null;
+    const voices = speechSynthesis.getVoices();
+    if (!voices.length) return null;
+    britishVoice =
+        voices.find(v => v.lang === 'en-GB' && /female|hazel|libby|sonia|serena/i.test(v.name)) ||
+        voices.find(v => v.lang === 'en-GB') ||
+        voices.find(v => v.lang && v.lang.startsWith('en-GB')) ||
+        voices.find(v => v.lang && v.lang.startsWith('en')) ||
+        voices[0];
+    return britishVoice;
+}
+if ('speechSynthesis' in window) {
+    pickBritishVoice();
+    speechSynthesis.onvoiceschanged = pickBritishVoice;
+}
+
+function speak(text) {
+    if (!ttsEnabled || !text || !('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    if (!britishVoice) pickBritishVoice();
+    if (britishVoice) { u.voice = britishVoice; u.lang = britishVoice.lang; }
+    else { u.lang = 'en-GB'; }
+    u.rate = 0.88;
+    u.pitch = 1;
+    speechSynthesis.speak(u);
+}
+
+// Plays a list of words one by one, with a 2-second pause after each finishes.
+function speakSequence(texts) {
+    if (!ttsEnabled || !('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    if (!britishVoice) pickBritishVoice();
+    const queue = texts.filter(Boolean);
+    let i = 0;
+    function next() {
+        if (i >= queue.length) return;
+        const u = new SpeechSynthesisUtterance(queue[i]);
+        if (britishVoice) { u.voice = britishVoice; u.lang = britishVoice.lang; }
+        else { u.lang = 'en-GB'; }
+        u.rate = 0.88;
+        u.pitch = 1;
+        u.onend = () => { i++; setTimeout(next, 2000); };
+        speechSynthesis.speak(u);
+    }
+    next();
+}
+
+function speakBtn(text) {
+    return `<button type="button" class="speak-btn" data-speak="${esc(text)}" title="Listen">🔊</button>`;
+}
+
+document.addEventListener('click', e => {
+    const speakOne = e.target.closest('.speak-btn');
+    if (speakOne) {
+        e.stopPropagation();
+        speak(speakOne.dataset.speak);
+        return;
+    }
+    const playAll = e.target.closest('#playAllVocab');
+    if (playAll) {
+        e.stopPropagation();
+        speakSequence(LESSON.vocab.map(w => w.en));
+    }
+});
+
+const ttsCheckbox = document.getElementById('ttsCheckbox');
+ttsCheckbox.checked = ttsEnabled;
+ttsCheckbox.addEventListener('change', () => {
+    ttsEnabled = ttsCheckbox.checked;
+    document.body.classList.toggle('read-aloud-off', !ttsEnabled);
+    localStorage.setItem('scReadAloud', ttsEnabled ? 'on' : 'off');
+    if (!ttsEnabled && 'speechSynthesis' in window) speechSynthesis.cancel();
+});
+
 const track = document.getElementById('sliderTrack');
 const slides = [];
 
@@ -333,11 +409,11 @@ const slides = [];
 const hasImages = LESSON.vocab.some(w => w.img);
 if (hasImages) {
     slides.push(buildSlide(`
-        <div class="slide-title">📚 Vocabulary</div>
+        <div class="slide-title-row"><div class="slide-title">📚 Vocabulary</div><button type="button" class="playall-btn" id="playAllVocab">▶ Read All</button></div>
         <div class="vocab-grid">${LESSON.vocab.map(w => `
             <div class="vocab-card">
                 ${w.img ? `<img class="vocab-photo" src="${esc(w.img)}" alt="${esc(w.en)}">` : '<div class="vocab-photo vocab-photo-empty"></div>'}
-                <div class="vocab-en">${esc(w.en)}</div>
+                <div class="vocab-en">${esc(w.en)}${speakBtn(w.en)}</div>
                 <div class="vocab-tr">${esc(w.ru)}</div>
                 <div class="vocab-tr">${esc(w.kz)}</div>
             </div>
@@ -345,69 +421,43 @@ if (hasImages) {
     `, 'wide'));
 } else {
     slides.push(buildSlide(`
-        <div class="slide-title">📚 Vocabulary</div>
+        <div class="slide-title-row"><div class="slide-title">📚 Vocabulary</div><button type="button" class="playall-btn" id="playAllVocab">▶ Read All</button></div>
         <table><thead><tr><th>English</th><th>Русский</th><th>Қазақша</th></tr></thead>
-        <tbody>${LESSON.vocab.map(w => `<tr><td>${esc(w.en)}</td><td>${esc(w.ru)}</td><td>${esc(w.kz)}</td></tr>`).join('')}</tbody></table>
+        <tbody>${LESSON.vocab.map(w => `<tr><td>${esc(w.en)}${speakBtn(w.en)}</td><td>${esc(w.ru)}</td><td>${esc(w.kz)}</td></tr>`).join('')}</tbody></table>
     `));
 }
 
 // Slide 1: warmup
 slides.push(buildSlide(`
     <div class="slide-title">💬 Let's talk about it</div>
-    <div class="lang-block"><div class="en">${esc(LESSON.warmup.en)}</div></div>
+    <div class="lang-block"><div class="en">${esc(LESSON.warmup.en)}${speakBtn(LESSON.warmup.en)}</div></div>
     <div class="lang-block"><div class="tr"><strong>RU:</strong> ${esc(LESSON.warmup.ru)}</div></div>
     <div class="lang-block"><div class="tr"><strong>KZ:</strong> ${esc(LESSON.warmup.kz)}</div></div>
 `));
 
-const isPictureLevel = LESSON.level === 'beginner' || LESSON.level === 'elementary';
-let gameSlide = null;
-
-if (isPictureLevel) {
-    // Questions paired two-per-slide; games live in the persistent top-right buttons instead of a hub slide.
-    for (let i = 0; i < LESSON.questions.length; i += 2) {
-        const q1 = LESSON.questions[i];
-        const q2 = LESSON.questions[i + 1];
-        slides.push(buildSlide(`
-            <div class="question-num">Questions ${i + 1}${q2 ? '–' + (i + 2) : ''} of ${LESSON.questions.length}</div>
-            <div class="q-pair">
-                <div class="q-block">
-                    <div class="q-index">${i + 1}</div>
-                    <div class="lang-block"><div class="en">${esc(q1.en)}</div></div>
-                    <div class="lang-block"><div class="tr"><strong>RU:</strong> ${esc(q1.ru)}</div></div>
-                    <div class="lang-block"><div class="tr"><strong>KZ:</strong> ${esc(q1.kz)}</div></div>
-                </div>
-                ${q2 ? `
-                <div class="q-divider"></div>
-                <div class="q-block">
-                    <div class="q-index">${i + 2}</div>
-                    <div class="lang-block"><div class="en">${esc(q2.en)}</div></div>
-                    <div class="lang-block"><div class="tr"><strong>RU:</strong> ${esc(q2.ru)}</div></div>
-                    <div class="lang-block"><div class="tr"><strong>KZ:</strong> ${esc(q2.kz)}</div></div>
-                </div>` : ''}
+// Questions paired two-per-slide, on every level. Games live in the persistent top-right buttons.
+for (let i = 0; i < LESSON.questions.length; i += 2) {
+    const q1 = LESSON.questions[i];
+    const q2 = LESSON.questions[i + 1];
+    slides.push(buildSlide(`
+        <div class="question-num">Questions ${i + 1}${q2 ? '–' + (i + 2) : ''} of ${LESSON.questions.length}</div>
+        <div class="q-pair">
+            <div class="q-block">
+                <div class="q-index">${i + 1}</div>
+                <div class="lang-block"><div class="en">${esc(q1.en)}${speakBtn(q1.en)}</div></div>
+                <div class="lang-block"><div class="tr"><strong>RU:</strong> ${esc(q1.ru)}</div></div>
+                <div class="lang-block"><div class="tr"><strong>KZ:</strong> ${esc(q1.kz)}</div></div>
             </div>
-        `));
-    }
-} else {
-    // Slide: game hub (Memory Match / Speed Quiz)
-    gameSlide = buildSlide(`
-        <div class="slide-title">🎮 Let's Play!</div>
-        <div class="game-menu">
-            <button id="playMemory" type="button">🧠 Memory Match</button>
-            <button id="playQuiz" type="button">⚡ Speed Quiz</button>
+            ${q2 ? `
+            <div class="q-divider"></div>
+            <div class="q-block">
+                <div class="q-index">${i + 2}</div>
+                <div class="lang-block"><div class="en">${esc(q2.en)}${speakBtn(q2.en)}</div></div>
+                <div class="lang-block"><div class="tr"><strong>RU:</strong> ${esc(q2.ru)}</div></div>
+                <div class="lang-block"><div class="tr"><strong>KZ:</strong> ${esc(q2.kz)}</div></div>
+            </div>` : ''}
         </div>
-        <div id="gameArea" style="margin-top:20px;"></div>
-    `);
-    slides.push(gameSlide);
-
-    // One slide per question
-    LESSON.questions.forEach((q, i) => {
-        slides.push(buildSlide(`
-            <div class="question-num">Question ${i + 1} of ${LESSON.questions.length}</div>
-            <div class="lang-block"><div class="en">${esc(q.en)}</div></div>
-            <div class="lang-block"><div class="tr"><strong>RU:</strong> ${esc(q.ru)}</div></div>
-            <div class="lang-block"><div class="tr"><strong>KZ:</strong> ${esc(q.kz)}</div></div>
-        `));
-    });
+    `));
 }
 
 slides.forEach(s => track.appendChild(s));
@@ -438,67 +488,27 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft') goTo(current - 1);
 });
 
-// Game hub wiring (Memory Match / Speed Quiz) — pre-intermediate/intermediate only
-if (gameSlide) {
-    gameSlide.querySelector('#playMemory').addEventListener('click', () => startGame('memory'));
-    gameSlide.querySelector('#playQuiz').addEventListener('click', () => startGame('quiz'));
+// Persistent Match / Hangman games — every level
+const overlay = document.getElementById('gameOverlay');
+const overlayBody = document.getElementById('overlayBody');
+const overlayClose = document.getElementById('overlayClose');
+const btnMatch = document.getElementById('btnMatch');
+const btnHangman = document.getElementById('btnHangman');
 
-    function startGame(type) {
-        const area = gameSlide.querySelector('#gameArea');
-        area.innerHTML = `
-            <div class="lang-toggle">
-                <span style="opacity:0.75;align-self:center;margin-right:6px;">Practice against:</span>
-                <button class="lang-btn active" data-lang="ru" type="button">Russian</button>
-                <button class="lang-btn" data-lang="kz" type="button">Kazakh</button>
-            </div>
-            <div id="gameMount"></div>
-        `;
-        const mount = area.querySelector('#gameMount');
-        let lang = 'ru';
-
-        function launch() {
-            mount.innerHTML = '';
-            if (type === 'memory') {
-                initMemoryGame(mount, LESSON.vocab, lang);
-            } else {
-                initQuizGame(mount, LESSON.vocab, lang);
-            }
-        }
-        area.querySelectorAll('.lang-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                area.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                lang = btn.dataset.lang;
-                launch();
-            });
-        });
-        launch();
-    }
+function openOverlay(title, builder, activeBtn) {
+    overlayBody.innerHTML = (title ? `<div class="overlay-title">${title}</div>` : '') + '<div id="overlayGame"></div>';
+    overlay.hidden = false;
+    builder(overlayBody.querySelector('#overlayGame'));
+    [btnMatch, btnHangman].forEach(b => b.classList.toggle('active', b === activeBtn));
 }
+overlayClose.addEventListener('click', () => {
+    overlay.hidden = true;
+    overlayBody.innerHTML = '';
+    [btnMatch, btnHangman].forEach(b => b.classList.remove('active'));
+});
 
-// Persistent Match / Hangman games — beginner/elementary only
-if (isPictureLevel) {
-    const overlay = document.getElementById('gameOverlay');
-    const overlayBody = document.getElementById('overlayBody');
-    const overlayClose = document.getElementById('overlayClose');
-    const btnMatch = document.getElementById('btnMatch');
-    const btnHangman = document.getElementById('btnHangman');
-
-    function openOverlay(title, builder, activeBtn) {
-        overlayBody.innerHTML = (title ? `<div class="overlay-title">${title}</div>` : '') + '<div id="overlayGame"></div>';
-        overlay.hidden = false;
-        builder(overlayBody.querySelector('#overlayGame'));
-        [btnMatch, btnHangman].forEach(b => b.classList.toggle('active', b === activeBtn));
-    }
-    overlayClose.addEventListener('click', () => {
-        overlay.hidden = true;
-        overlayBody.innerHTML = '';
-        [btnMatch, btnHangman].forEach(b => b.classList.remove('active'));
-    });
-
-    btnMatch.addEventListener('click', () => openOverlay('🎯 Match the Word', mount => startMatchGame(mount, LESSON.vocab), btnMatch));
-    btnHangman.addEventListener('click', () => openOverlay('', mount => startHangmanGame(mount, LESSON.hangman, LESSON.topic), btnHangman));
-}
+btnMatch.addEventListener('click', () => openOverlay('🎯 Match the Word', mount => startMatchGame(mount, LESSON.vocab), btnMatch));
+btnHangman.addEventListener('click', () => openOverlay('', mount => startHangmanGame(mount, LESSON.hangman, LESSON.topic), btnHangman));
 
 const MATCH_COLORS = ['#dc2626', '#ea580c', '#2563eb', '#0891b2', '#16a34a', '#7c3aed', '#db2777', '#059669', '#ca8a04', '#4338ca'];
 
@@ -535,6 +545,7 @@ function startMatchGame(container, vocabList) {
         container.querySelectorAll('.match-opt').forEach(btn => {
             btn.addEventListener('click', () => {
                 container.querySelectorAll('.match-opt').forEach(b => b.disabled = true);
+                speak(target.en);
                 if (btn.dataset.en === target.en) {
                     feedback.textContent = '✅ Correct!';
                     score++;
@@ -653,6 +664,7 @@ function startHangmanGame(container, words, topic) {
 
         function finishWord(won, wrongCount) {
             solved += won ? 1 : 0;
+            speak(word);
             container.innerHTML = `
                 <div class="hangman-panel">
                     ${hangmanSvg(wrongCount)}
