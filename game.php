@@ -209,7 +209,10 @@ $typeLabel = $typeLabels[$type];
     }
     .mem-card-back { background: linear-gradient(145deg, #5b5fef, #7c3aed); }
     .mem-card-num { font-size: 1.5em; font-weight: 900; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,0.35); }
-    .mem-card-front { background: #fff; transform: rotateY(180deg); padding: 4px; }
+    .mem-card-front { transform: rotateY(180deg); padding: 4px; }
+    .mem-card-front-word { background: #fff; }
+    .mem-card-front-img { background: linear-gradient(145deg, #fef3c7, #fde68a); }
+    .mem-card-front-tr { background: linear-gradient(145deg, #ecfdf5, #bbf7d0); }
     .mem-card-front img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
     .mem-word { font-weight: 800; font-size: 0.95em; text-align: center; color: #1c2130; padding: 4px; }
     .mem-tr { text-align: center; font-size: 0.72em; line-height: 1.3; color: #1c2130; padding: 4px; }
@@ -485,6 +488,7 @@ function startMemoryGame(container, vocabList, useImages) {
     let matched = 0;
     let startTime = 0;
     let timerHandle = null;
+    let gridEl = null;
 
     function buildCards() {
         const words = shuffleArray(vocabList).slice(0, PAIR_COUNT);
@@ -507,40 +511,50 @@ function startMemoryGame(container, vocabList, useImages) {
     }
 
     function cardHtml(c) {
-        const cls = ['mem-card'];
-        if (c.isFlipped || c.isMatched) cls.push('is-flipped');
-        if (c.isMatched) cls.push('is-matched');
-        if (c.isWrong) cls.push('is-wrong');
         return `
-            <button type="button" class="${cls.join(' ')}" data-pos="${c.pos}" style="--i:${c.pos}" ${c.isMatched ? 'disabled' : ''}>
+            <button type="button" class="mem-card" data-pos="${c.pos}" style="--i:${c.pos}">
                 <div class="mem-card-inner">
                     <div class="mem-card-back"><span class="mem-card-num">${c.pos + 1}</span></div>
-                    <div class="mem-card-front">${cardFace(c)}</div>
+                    <div class="mem-card-front mem-card-front-${c.kind}">${cardFace(c)}</div>
                 </div>
-                ${c.isMatched ? '<div class="mem-sparkle">✨</div>' : ''}
             </button>
         `;
     }
 
-    function render() {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        container.innerHTML = `
-            <div class="memory-panel">
-                <div class="memory-stats">
-                    <div class="memory-stat">⏱ <span id="memTimer">${formatTime(elapsed)}</span></div>
-                    <div class="memory-stat">🔄 ${moves} moves</div>
-                    <div class="memory-stat">✅ ${matched}/${PAIR_COUNT}</div>
-                </div>
-                <div class="memory-grid">${cards.map(cardHtml).join('')}</div>
-            </div>
-        `;
-        container.querySelectorAll('.mem-card').forEach(btn => {
-            btn.addEventListener('click', () => onCardClick(parseInt(btn.dataset.pos, 10)));
-        });
+    // Updates only the one card button that changed, instead of rebuilding
+    // the whole 16-card grid on every click - a full innerHTML rebuild would
+    // replay every card's entrance animation and cause a distracting
+    // full-board flash on each guess.
+    function updateCardEl(pos) {
+        const card = cards[pos];
+        const btn = gridEl.querySelector(`.mem-card[data-pos="${pos}"]`);
+        if (!card || !btn) return;
+        const cls = ['mem-card'];
+        if (card.isFlipped || card.isMatched) cls.push('is-flipped');
+        if (card.isMatched) cls.push('is-matched');
+        if (card.isWrong) cls.push('is-wrong');
+        btn.className = cls.join(' ');
+        btn.disabled = card.isMatched;
+        let sparkle = btn.querySelector('.mem-sparkle');
+        if (card.isMatched && !sparkle) {
+            sparkle = document.createElement('div');
+            sparkle.className = 'mem-sparkle';
+            sparkle.textContent = '✨';
+            btn.appendChild(sparkle);
+        } else if (!card.isMatched && sparkle) {
+            sparkle.remove();
+        }
+    }
+
+    function updateStats() {
+        const m = container.querySelector('#memMoves');
+        const k = container.querySelector('#memMatched');
+        if (m) m.textContent = moves;
+        if (k) k.textContent = matched;
     }
 
     function tick() {
-        const el = document.getElementById('memTimer');
+        const el = container.querySelector('#memTimer');
         if (el) el.textContent = formatTime(Math.floor((Date.now() - startTime) / 1000));
     }
 
@@ -550,28 +564,33 @@ function startMemoryGame(container, vocabList, useImages) {
         if (!card || card.isFlipped || card.isMatched) return;
         card.isFlipped = true;
         flipped.push(card);
-        render();
+        updateCardEl(pos);
         if (flipped.length === 2) {
             lock = true;
             moves++;
+            updateStats();
             const [a, b] = flipped;
             if (a.matchId === b.matchId) {
                 a.isMatched = true; b.isMatched = true;
                 matched++;
                 speak(a.en);
+                updateCardEl(a.pos);
+                updateCardEl(b.pos);
+                updateStats();
                 flipped = [];
                 lock = false;
-                render();
                 if (matched === PAIR_COUNT) setTimeout(finish, 500);
             } else {
                 a.isWrong = true; b.isWrong = true;
-                render();
+                updateCardEl(a.pos);
+                updateCardEl(b.pos);
                 setTimeout(() => {
                     a.isFlipped = false; b.isFlipped = false;
                     a.isWrong = false; b.isWrong = false;
                     flipped = [];
                     lock = false;
-                    render();
+                    updateCardEl(a.pos);
+                    updateCardEl(b.pos);
                 }, 900);
             }
         }
@@ -601,8 +620,22 @@ function startMemoryGame(container, vocabList, useImages) {
         matched = 0;
         startTime = Date.now();
         clearInterval(timerHandle);
+        container.innerHTML = `
+            <div class="memory-panel">
+                <div class="memory-stats">
+                    <div class="memory-stat">⏱ <span id="memTimer">0:00</span></div>
+                    <div class="memory-stat">🔄 <span id="memMoves">0</span> moves</div>
+                    <div class="memory-stat">✅ <span id="memMatched">0</span>/${PAIR_COUNT}</div>
+                </div>
+                <div class="memory-grid" id="memGrid">${cards.map(cardHtml).join('')}</div>
+            </div>
+        `;
+        gridEl = container.querySelector('#memGrid');
+        gridEl.addEventListener('click', e => {
+            const btn = e.target.closest('.mem-card');
+            if (btn) onCardClick(parseInt(btn.dataset.pos, 10));
+        });
         timerHandle = setInterval(tick, 1000);
-        render();
     }
 
     start();

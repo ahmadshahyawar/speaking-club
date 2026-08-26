@@ -84,18 +84,21 @@ $data = [
     td { padding: 12px 13px; border-bottom: 1px solid rgba(255,255,255,0.14); }
     tr:nth-child(even) td { background: rgba(255,255,255,0.04); }
     .content-box.wide { max-width: 1100px; }
-    .vocab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+    /* Flexbox (not grid) so a short last row grows to fill the width instead
+       of leaving empty cells - grid keeps the same column tracks on every
+       row even when a later row has fewer items than the row above it. */
+    .vocab-grid { display: flex; flex-wrap: wrap; gap: 12px; }
     .vocab-card {
         background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.16); border-radius: 14px;
-        padding: 9px; text-align: center;
+        padding: 9px; text-align: center; flex: 1 1 130px; max-width: 200px;
     }
     .vocab-photo {
         width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px;
         margin-bottom: 6px; box-shadow: 0 6px 18px rgba(0,0,0,0.45); display: block;
     }
     .vocab-photo-empty { background: rgba(255,255,255,0.08); }
-    .vocab-en { font-weight: 700; font-size: 0.98em; margin-bottom: 3px; }
-    .vocab-tr { font-size: 0.83em; opacity: 0.82; line-height: 1.3; }
+    .vocab-en { font-weight: 700; font-size: 1.08em; margin-bottom: 4px; }
+    .vocab-tr { font-size: 1em; opacity: 0.92; line-height: 1.4; }
 
     .slide-title { text-align: center; font-size: 1.7em; font-weight: 800; margin-bottom: 8px; }
     .slide-title-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
