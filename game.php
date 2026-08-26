@@ -207,12 +207,14 @@ $typeLabel = $typeLabels[$type];
         position: absolute; inset: 0; border-radius: 14px; backface-visibility: hidden;
         display: flex; align-items: center; justify-content: center; overflow: hidden;
     }
-    .mem-card-back { background: linear-gradient(145deg, #5b5fef, #7c3aed); }
+    /* Back color shows the card TYPE (picture / word / translation) before
+       it's flipped, so players know what kind of card they're picking - but
+       not its specific content, which is still the actual memory challenge. */
+    .mem-card-back-word { background: linear-gradient(145deg, #5b5fef, #7c3aed); }
+    .mem-card-back-img { background: linear-gradient(145deg, #f59e0b, #d97706); }
+    .mem-card-back-tr { background: linear-gradient(145deg, #10b981, #059669); }
     .mem-card-num { font-size: 1.5em; font-weight: 900; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,0.35); }
-    .mem-card-front { transform: rotateY(180deg); padding: 4px; }
-    .mem-card-front-word { background: #fff; }
-    .mem-card-front-img { background: #f59e0b; border: 4px solid #d97706; padding: 8px; }
-    .mem-card-front-tr { background: linear-gradient(145deg, #ecfdf5, #bbf7d0); }
+    .mem-card-front { transform: rotateY(180deg); padding: 4px; background: #fff; }
     .mem-card-front img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
     .mem-word { font-weight: 800; font-size: 0.95em; text-align: center; color: #1c2130; padding: 4px; }
     .mem-tr { text-align: center; font-size: 0.72em; line-height: 1.3; color: #1c2130; padding: 4px; }
@@ -514,8 +516,8 @@ function startMemoryGame(container, vocabList, useImages) {
         return `
             <button type="button" class="mem-card" data-pos="${c.pos}" style="--i:${c.pos}">
                 <div class="mem-card-inner">
-                    <div class="mem-card-back"><span class="mem-card-num">${c.pos + 1}</span></div>
-                    <div class="mem-card-front mem-card-front-${c.kind}">${cardFace(c)}</div>
+                    <div class="mem-card-back mem-card-back-${c.kind}"><span class="mem-card-num">${c.pos + 1}</span></div>
+                    <div class="mem-card-front">${cardFace(c)}</div>
                 </div>
             </button>
         `;

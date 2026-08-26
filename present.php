@@ -216,9 +216,9 @@ $data = [
 <div class="game-menu" id="gameMenu">
     <button type="button" class="game-menu-toggle" id="gameMenuToggle">🎮 Games</button>
     <div class="game-menu-list" id="gameMenuList">
-        <a href="game.php?id=<?= $data['id'] ?>&type=match" target="_blank" rel="noopener">🎯 Match</a>
-        <a href="game.php?id=<?= $data['id'] ?>&type=memory" target="_blank" rel="noopener">🧠 Memory</a>
-        <a href="game.php?id=<?= $data['id'] ?>&type=hangman" target="_blank" rel="noopener">🔠 Hangman</a>
+        <a href="game.php?id=<?= $data['id'] ?>&type=match">🎯 Match</a>
+        <a href="game.php?id=<?= $data['id'] ?>&type=memory">🧠 Memory</a>
+        <a href="game.php?id=<?= $data['id'] ?>&type=hangman">🔠 Hangman</a>
     </div>
 </div>
 
@@ -464,6 +464,7 @@ slides.forEach((_, i) => {
 });
 
 let current = 0;
+const SLIDE_KEY = 'scSlide_' + LESSON.id;
 function goTo(i) {
     if (i < 0 || i >= slides.length) return;
     current = i;
@@ -471,6 +472,7 @@ function goTo(i) {
     document.getElementById('prevBtn').disabled = current === 0;
     document.getElementById('nextBtn').disabled = current === slides.length - 1;
     document.querySelectorAll('.dot-btn').forEach((d, di) => d.classList.toggle('active', di === current));
+    try { sessionStorage.setItem(SLIDE_KEY, current); } catch (e) {}
 }
 
 document.getElementById('prevBtn').addEventListener('click', () => goTo(current - 1));
@@ -480,7 +482,15 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft') goTo(current - 1);
 });
 
-goTo(0);
+// Opening a game (Match/Memory/Hangman) navigates away from this page in the
+// same tab, so clicking "Back to Lesson" reloads present.php from scratch -
+// resume on whichever slide the teacher was on instead of always slide 1.
+let savedSlide = 0;
+try {
+    const raw = sessionStorage.getItem(SLIDE_KEY);
+    if (raw !== null) savedSlide = Math.max(0, Math.min(slides.length - 1, parseInt(raw, 10) || 0));
+} catch (e) {}
+goTo(savedSlide);
 </script>
 </body>
 </html>
