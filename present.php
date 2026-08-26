@@ -216,9 +216,9 @@ $data = [
 <div class="game-menu" id="gameMenu">
     <button type="button" class="game-menu-toggle" id="gameMenuToggle">🎮 Games</button>
     <div class="game-menu-list" id="gameMenuList">
-        <a href="game.php?id=<?= $data['id'] ?>&type=match">🎯 Match</a>
-        <a href="game.php?id=<?= $data['id'] ?>&type=memory">🧠 Memory</a>
-        <a href="game.php?id=<?= $data['id'] ?>&type=hangman">🔠 Hangman</a>
+        <a href="game.php?id=<?= $data['id'] ?>&type=match" target="_blank" rel="noopener">🎯 Match</a>
+        <a href="game.php?id=<?= $data['id'] ?>&type=memory" target="_blank" rel="noopener">🧠 Memory</a>
+        <a href="game.php?id=<?= $data['id'] ?>&type=hangman" target="_blank" rel="noopener">🔠 Hangman</a>
     </div>
 </div>
 
