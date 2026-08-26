@@ -211,7 +211,7 @@ $typeLabel = $typeLabels[$type];
     .mem-card-num { font-size: 1.5em; font-weight: 900; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,0.35); }
     .mem-card-front { transform: rotateY(180deg); padding: 4px; }
     .mem-card-front-word { background: #fff; }
-    .mem-card-front-img { background: linear-gradient(145deg, #fef3c7, #fde68a); }
+    .mem-card-front-img { background: #f59e0b; border: 4px solid #d97706; padding: 8px; }
     .mem-card-front-tr { background: linear-gradient(145deg, #ecfdf5, #bbf7d0); }
     .mem-card-front img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
     .mem-word { font-weight: 800; font-size: 0.95em; text-align: center; color: #1c2130; padding: 4px; }
