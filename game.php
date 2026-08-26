@@ -195,38 +195,21 @@ function esc(s) {
     return d.innerHTML;
 }
 
-// Text-to-speech: British English voice, medium/clear rate.
+// Text-to-speech: server-generated British English audio, played through a
+// real <audio> element so it's part of the page's audio output and gets
+// captured by Google Meet / Zoom tab-audio sharing (unlike speechSynthesis,
+// which Chrome renders straight to the OS output device and screen-share
+// tools can't pick up).
 let ttsEnabled = localStorage.getItem('scReadAloud') !== 'off';
 document.body.classList.toggle('read-aloud-off', !ttsEnabled);
 
-let britishVoice = null;
-function pickBritishVoice() {
-    if (!('speechSynthesis' in window)) return null;
-    const voices = speechSynthesis.getVoices();
-    if (!voices.length) return null;
-    britishVoice =
-        voices.find(v => v.lang === 'en-GB' && /female|hazel|libby|sonia|serena/i.test(v.name)) ||
-        voices.find(v => v.lang === 'en-GB') ||
-        voices.find(v => v.lang && v.lang.startsWith('en-GB')) ||
-        voices.find(v => v.lang && v.lang.startsWith('en')) ||
-        voices[0];
-    return britishVoice;
-}
-if ('speechSynthesis' in window) {
-    pickBritishVoice();
-    speechSynthesis.onvoiceschanged = pickBritishVoice;
-}
+const ttsAudio = new Audio();
 
 function speak(text) {
-    if (!ttsEnabled || !text || !('speechSynthesis' in window)) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    if (!britishVoice) pickBritishVoice();
-    if (britishVoice) { u.voice = britishVoice; u.lang = britishVoice.lang; }
-    else { u.lang = 'en-GB'; }
-    u.rate = 0.88;
-    u.pitch = 1;
-    speechSynthesis.speak(u);
+    if (!ttsEnabled || !text) return;
+    ttsAudio.pause();
+    ttsAudio.src = 'api/tts.php?text=' + encodeURIComponent(text);
+    ttsAudio.play().catch(() => {});
 }
 
 const ttsCheckbox = document.getElementById('ttsCheckbox');
@@ -235,7 +218,7 @@ ttsCheckbox.addEventListener('change', () => {
     ttsEnabled = ttsCheckbox.checked;
     document.body.classList.toggle('read-aloud-off', !ttsEnabled);
     localStorage.setItem('scReadAloud', ttsEnabled ? 'on' : 'off');
-    if (!ttsEnabled && 'speechSynthesis' in window) speechSynthesis.cancel();
+    if (!ttsEnabled) ttsAudio.pause();
 });
 
 const MATCH_COLORS = ['#dc2626', '#ea580c', '#2563eb', '#0891b2', '#16a34a', '#7c3aed', '#db2777', '#059669', '#ca8a04', '#4338ca'];

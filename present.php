@@ -230,40 +230,28 @@ function buildSlide(innerHtml, extraClass) {
     return slide;
 }
 
-// Text-to-speech: British English voice, medium/clear rate.
+// Text-to-speech: server-generated British English audio, played through a
+// real <audio> element so it's part of the page's audio output and gets
+// captured by Google Meet / Zoom tab-audio sharing (unlike speechSynthesis,
+// which Chrome renders straight to the OS output device and screen-share
+// tools can't pick up).
 let ttsEnabled = localStorage.getItem('scReadAloud') !== 'off';
 document.body.classList.toggle('read-aloud-off', !ttsEnabled);
 
-let britishVoice = null;
-function pickBritishVoice() {
-    if (!('speechSynthesis' in window)) return null;
-    const voices = speechSynthesis.getVoices();
-    if (!voices.length) return null;
-    britishVoice =
-        voices.find(v => v.lang === 'en-GB' && /female|hazel|libby|sonia|serena/i.test(v.name)) ||
-        voices.find(v => v.lang === 'en-GB') ||
-        voices.find(v => v.lang && v.lang.startsWith('en-GB')) ||
-        voices.find(v => v.lang && v.lang.startsWith('en')) ||
-        voices[0];
-    return britishVoice;
-}
-if ('speechSynthesis' in window) {
-    pickBritishVoice();
-    speechSynthesis.onvoiceschanged = pickBritishVoice;
+const ttsAudio = new Audio();
+
+function ttsUrl(text) {
+    return 'api/tts.php?text=' + encodeURIComponent(text);
 }
 
 function speak(text) {
-    if (!ttsEnabled || !text || !('speechSynthesis' in window)) return;
+    if (!ttsEnabled || !text) return;
     stopSequence();
     clearVocabHighlight();
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    if (!britishVoice) pickBritishVoice();
-    if (britishVoice) { u.voice = britishVoice; u.lang = britishVoice.lang; }
-    else { u.lang = 'en-GB'; }
-    u.rate = 0.88;
-    u.pitch = 1;
-    speechSynthesis.speak(u);
+    ttsAudio.onended = null;
+    ttsAudio.pause();
+    ttsAudio.src = ttsUrl(text);
+    ttsAudio.play().catch(() => {});
 }
 
 // Plays a list of words one by one, with a 2-second pause after each finishes.
@@ -273,10 +261,9 @@ let sequenceStopRequested = false;
 let sequenceTimer = null;
 
 function speakSequence(texts, onStart, onDone) {
-    if (!ttsEnabled || !('speechSynthesis' in window)) return;
+    if (!ttsEnabled) return;
     stopSequence();
     sequenceStopRequested = false;
-    if (!britishVoice) pickBritishVoice();
     const queue = texts.filter(Boolean);
     let i = 0;
     function next() {
@@ -285,17 +272,16 @@ function speakSequence(texts, onStart, onDone) {
             return;
         }
         if (onStart) onStart(i);
-        const u = new SpeechSynthesisUtterance(queue[i]);
-        if (britishVoice) { u.voice = britishVoice; u.lang = britishVoice.lang; }
-        else { u.lang = 'en-GB'; }
-        u.rate = 0.88;
-        u.pitch = 1;
-        u.onend = () => {
+        ttsAudio.src = ttsUrl(queue[i]);
+        ttsAudio.onended = () => {
             i++;
             if (sequenceStopRequested) { if (onDone) onDone(); return; }
             sequenceTimer = setTimeout(next, 2000);
         };
-        speechSynthesis.speak(u);
+        ttsAudio.play().catch(() => {
+            i++;
+            if (!sequenceStopRequested) sequenceTimer = setTimeout(next, 200);
+        });
     }
     next();
 }
@@ -303,7 +289,8 @@ function speakSequence(texts, onStart, onDone) {
 function stopSequence() {
     sequenceStopRequested = true;
     if (sequenceTimer) { clearTimeout(sequenceTimer); sequenceTimer = null; }
-    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    ttsAudio.onended = null;
+    ttsAudio.pause();
 }
 
 function speakBtn(text) {
@@ -357,7 +344,7 @@ ttsCheckbox.addEventListener('change', () => {
     ttsEnabled = ttsCheckbox.checked;
     document.body.classList.toggle('read-aloud-off', !ttsEnabled);
     localStorage.setItem('scReadAloud', ttsEnabled ? 'on' : 'off');
-    if (!ttsEnabled && 'speechSynthesis' in window) speechSynthesis.cancel();
+    if (!ttsEnabled) stopSequence();
 });
 
 const track = document.getElementById('sliderTrack');

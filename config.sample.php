@@ -12,4 +12,8 @@ return [
     // From https://console.anthropic.com/settings/keys
     'anthropic_api_key' => 'CHANGE_ME',
     'anthropic_model' => 'claude-sonnet-4-5',
+
+    // From https://console.cloud.google.com/apis/credentials (enable the
+    // "Cloud Text-to-Speech API" on the project first).
+    'google_tts_api_key' => 'CHANGE_ME',
 ];
