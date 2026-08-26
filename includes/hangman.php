@@ -187,9 +187,59 @@ function build_hangman_clues(): array {
     ];
 }
 
-function extract_hangman_words(string $warmupEn, array $questionsEn, array $vocabWords, int $seed): array {
+// Harder word bank for Pre-Intermediate/Intermediate: longer, more abstract
+// words with indirect scenario-style clues instead of plain definitions, so
+// the answer takes more inference than a straight translation lookup.
+function build_hangman_clues_hard(): array {
+    return [
+        'confident' => C("If you feel this way, public speaking or a job interview doesn't scare you at all.", "Если вы чувствуете себя так, публичное выступление или собеседование вас совсем не пугает.", "Егер сіз осылай сезінсеңіз, көпшілік алдында сөйлеу немесе сұхбат сізді мүлдем қорықтырмайды."),
+        'curious' => C("Someone with this trait always wants to know how things work or what happens next.", "Человек с такой чертой всегда хочет знать, как всё устроено или что будет дальше.", "Мұндай қасиеті бар адам әрқашан заттардың қалай жұмыс істейтінін немесе әрі қарай не боларын білгісі келеді."),
+        'generous' => C("A person like this happily shares money, time, or gifts with others.", "Такой человек с радостью делится деньгами, временем или подарками с другими.", "Мұндай адам ақшасын, уақытын немесе сыйлықтарын басқалармен қуана бөліседі."),
+        'stubborn' => C("This kind of person refuses to change their mind, even when everyone disagrees.", "Такой человек отказывается менять своё мнение, даже когда все с ним не согласны.", "Мұндай адам барлығы келіспесе де өз пікірін өзгертуден бас тартады."),
+        'reliable' => C("If a friend is like this, you know they will always keep their promises.", "Если друг такой, вы знаете, что он всегда сдержит своё обещание.", "Егер дос осындай болса, ол әрқашан уәдесін орындайтынын білесіз."),
+        'ambitious' => C("Someone with this quality sets big goals and works hard to reach the top.", "Человек с таким качеством ставит большие цели и усердно работает, чтобы достичь вершины.", "Мұндай қасиеті бар адам үлкен мақсаттар қойып, шыңға жету үшін қажырлы еңбек етеді."),
+        'cautious' => C("A driver who is like this checks twice before crossing an intersection.", "Водитель, который такой, дважды проверяет всё перед перекрёстком.", "Осындай жүргізуші қиылысқа шығар алдында екі рет тексереді."),
+        'patient' => C("You need this quality when you wait in a long line without getting angry.", "Это качество нужно, когда вы стоите в длинной очереди, не злясь.", "Ұзақ кезекте ашуланбай тұру үшін осы қасиет қажет."),
+        'jealous' => C("You might feel this when someone else has something you really want.", "Вы можете почувствовать это, когда у кого-то есть то, что вы очень хотите.", "Басқа біреуде сіз қатты қалайтын нәрсе болғанда сіз осылай сезінуіңіз мүмкін."),
+        'selfish' => C("This word describes someone who only thinks about their own needs, not others'.", "Это слово описывает того, кто думает только о своих потребностях, а не о других.", "Бұл сөз тек өз қажеттіліктері туралы ойлайтын, басқаларды ойламайтын адамды сипаттайды."),
+        'shy' => C("This person often feels nervous and quiet around people they don't know well.", "Такой человек часто чувствует себя нервно и молчит рядом с малознакомыми людьми.", "Мұндай адам жақсы танымайтын адамдардың қасында жиі мазасызданады және үндемейді."),
+        'talented' => C("This word describes someone who is naturally very good at something, like music or art.", "Это слово описывает того, кто от природы очень хорошо умеет что-то делать, например музыку или искусство.", "Бұл сөз музыка немесе өнер сияқты бір нәрсені табиғи түрде жақсы істейтін адамды сипаттайды."),
+        'opportunity' => C("When a great chance appears, like a new job offer, people call it this.", "Когда появляется отличный шанс, например предложение новой работы, это называют этим словом.", "Жаңа жұмыс ұсынысы сияқты тамаша мүмкіндік пайда болғанда, оны осылай атайды."),
+        'responsibility' => C("Taking care of a younger sibling is an example of having this.", "Забота о младшем брате или сестре — это пример наличия этого.", "Кіші бауырды күту — осы қасиеттің бар екенінің мысалы."),
+        'environment' => C("Rivers, forests, and the air we breathe are all part of this.", "Реки, леса и воздух, которым мы дышим, — всё это часть этого.", "Өзендер, ормандар және біз дем алатын ауа — осының бәрі осының бір бөлігі."),
+        'tradition' => C("A custom passed down from grandparents to grandchildren for many years is called this.", "Обычай, передаваемый от бабушек и дедушек к внукам на протяжении многих лет, называют этим словом.", "Ата-әжеден немереге көптеген жылдар бойы берілетін әдет-ғұрып осылай аталады."),
+        'experience' => C("The knowledge you gain from actually doing something, not just reading about it, is this.", "Знания, которые вы получаете, действительно что-то делая, а не просто читая об этом, — это оно.", "Тек оқып қана емес, іс жүзінде бір нәрсе жасау арқылы алған білім осы деп аталады."),
+        'relationship' => C("The connection between two friends, family members, or partners is called this.", "Связь между двумя друзьями, членами семьи или партнёрами называют этим словом.", "Екі дос, отбасы мүшелері немесе серіктестер арасындағы байланыс осылай аталады."),
+        'opinion' => C("What you personally believe about something, even if others disagree, is called this.", "То, что вы лично думаете о чём-то, даже если другие не согласны, называют этим словом.", "Басқалар келіспесе де, сіздің бір нәрсе туралы жеке ойыңыз осылай аталады."),
+        'decision' => C("After thinking carefully about two choices, the final one you pick is called this.", "После тщательного обдумывания двух вариантов, окончательный выбор называют этим словом.", "Екі нұсқаны мұқият ойластырғаннан кейін таңдалған соңғы нұсқа осылай аталады."),
+        'challenge' => C("A difficult task that tests your skills or strength is called this.", "Трудная задача, которая проверяет ваши навыки или силу, называется этим словом.", "Сіздің дағдыларыңызды немесе күшіңізді сынайтын қиын тапсырма осылай аталады."),
+        'achievement' => C("Winning a competition or finishing a big project is an example of this.", "Победа в соревновании или завершение крупного проекта — пример этого.", "Жарыста жеңу немесе үлкен жобаны аяқтау — осының мысалы."),
+        'imagination' => C("The part of your mind that creates pictures and stories that are not real is this.", "Часть вашего разума, которая создаёт картины и истории, которых нет на самом деле, — это оно.", "Ақылыңыздың шын емес суреттер мен әңгімелер жасайтын бөлігі осылай аталады."),
+        'apologize' => C("When you say sorry after making a mistake, this is what you're doing.", "Когда вы говорите «извините» после ошибки, вы делаете именно это.", "Қате жіберген соң «кешіріңіз» дегенде, сіз дәл осыны істеп жатырсыз."),
+        'complain' => C("If your food is cold at a restaurant, you might do this to the waiter.", "Если еда в ресторане холодная, вы можете сделать это официанту.", "Мейрамханада тамақ суық болса, сіз даяршыға осыны жасауыңыз мүмкін."),
+        'hesitate' => C("You do this when you're not sure and pause before making a choice.", "Вы делаете это, когда не уверены и делаете паузу перед выбором.", "Сенімсіз болғанда және таңдау жасар алдында аз аялдағанда, сіз осыны істейсіз."),
+        'recommend' => C("When you tell a friend a movie is great and they should watch it, you do this.", "Когда вы говорите другу, что фильм отличный и его стоит посмотреть, вы делаете это.", "Досыңызға фильм тамаша, оны көру керек деп айтқанда, сіз осыны істейсіз."),
+        'predict' => C("Weather forecasters do this every day when they say if it will rain tomorrow.", "Синоптики делают это каждый день, говоря, будет ли завтра дождь.", "Метеорологтар ертең жаңбыр жауа ма деп айтқанда, күн сайын осыны істейді."),
+        'negotiate' => C("Two sides do this when they talk to agree on a price or a deal.", "Две стороны делают это, когда разговаривают, чтобы договориться о цене или сделке.", "Екі тарап баға немесе келісім туралы келісу үшін сөйлескенде осыны істейді."),
+        'convince' => C("You do this when you successfully change someone's mind with good reasons.", "Вы делаете это, когда успешно меняете чьё-то мнение с помощью хороших доводов.", "Жақсы дәлелдермен біреудің пікірін сәтті өзгерткенде, сіз осыны істейсіз."),
+        'admire' => C("You feel this about someone you deeply respect for what they've done.", "Вы чувствуете это к тому, кого глубоко уважаете за его достижения.", "Біреудің жетістігі үшін оны терең құрметтегенде, сіз осылай сезінесіз."),
+        'criticize' => C("A movie reviewer does this when they point out what was bad about a film.", "Кинокритик делает это, когда указывает, что было плохо в фильме.", "Фильм сыншысы фильмдегі жаман нәрселерді көрсеткенде, осыны істейді."),
+        'forgive' => C("You do this when you decide to stop being angry at someone who hurt you.", "Вы делаете это, когда решаете перестать злиться на того, кто вас обидел.", "Сізді ренжіткен адамға ашулануды тоқтатуды шешкенде, сіз осыны істейсіз."),
+        'regret' => C("You feel this about a choice you wish you had made differently.", "Вы чувствуете это по поводу выбора, который хотели бы сделать иначе.", "Басқаша жасағыңыз келетін таңдау туралы сіз осылай сезінесіз."),
+        'celebrate' => C("Families do this with a cake and music on a birthday.", "Семьи делают это с тортом и музыкой на день рождения.", "Отбасылар туған күнде торт пен музыкамен осыны істейді."),
+        'compete' => C("Two runners do this against each other to see who is faster.", "Два бегуна делают это друг против друга, чтобы узнать, кто быстрее.", "Екі жүгіруші кім жылдам екенін білу үшін бір-бірімен осыны істейді."),
+        'survive' => C("Staying alive through a difficult or dangerous situation is what this means.", "Остаться в живых в трудной или опасной ситуации — вот что это значит.", "Қиын немесе қауіпті жағдайда тірі қалу дегенді осы білдіреді."),
+        'borrow' => C("You do this when you take a book from the library, planning to return it.", "Вы делаете это, когда берёте книгу из библиотеки, планируя её вернуть.", "Кітапхананан кітапты қайтаруды жоспарлап алғанда, сіз осыны істейсіз."),
+        'donate' => C("You do this when you give old clothes or money to people in need, for free.", "Вы делаете это, когда бесплатно отдаёте старую одежду или деньги нуждающимся.", "Ескі киім немесе ақшаны мұқтаж адамдарға тегін бергенде, сіз осыны істейсіз."),
+        'recycle' => C("Putting plastic bottles in a special bin so they can be used again is this.", "Класть пластиковые бутылки в специальный контейнер, чтобы их использовали снова, — это оно.", "Пластик бөтелкелерді қайта пайдалану үшін арнайы себетке салу осылай аталады."),
+    ];
+}
+
+function extract_hangman_words(string $warmupEn, array $questionsEn, array $vocabWords, int $seed, string $level = 'beginner'): array {
     $vocabLower = array_flip(array_map('mb_strtolower', $vocabWords));
-    $clues = build_hangman_clues();
+    $clues = in_array($level, ['pre-intermediate', 'intermediate'], true)
+        ? build_hangman_clues_hard()
+        : build_hangman_clues();
 
     $text = mb_strtolower($warmupEn . ' ' . implode(' ', $questionsEn));
     preg_match_all("/[a-z']+/", $text, $m);

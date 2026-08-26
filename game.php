@@ -44,7 +44,8 @@ $hangman = extract_hangman_words(
     (string)($warmup['en'] ?? ''),
     array_column($questions, 'en'),
     array_column($vocab, 'en'),
-    (int)$lesson['id']
+    (int)$lesson['id'],
+    (string)$lesson['level']
 );
 
 $data = [
@@ -125,8 +126,15 @@ $data = [
     .match-complete h3 { font-size: 1.4em; margin-bottom: 8px; }
 
     /* Hangman game */
-    @keyframes partPop { 0% { transform: scale(0); opacity: 0; } 65% { transform: scale(1.18); } 100% { transform: scale(1); opacity: 1; } }
     @keyframes keyShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+    /* Each new body part sketches itself in (stroke draws on), then lands with a
+       springy little bounce - much more alive than a flat fade/scale-in. */
+    @keyframes hgLine { to { stroke-dashoffset: 0; } }
+    @keyframes hgSettle { from { transform: scale(1.3); } to { transform: scale(1); } }
+    @keyframes hgSwing { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+    .hg-part { transform-box: fill-box; transform-origin: center; animation: hgSettle .35s cubic-bezier(.34,1.56,.64,1) both; animation-delay: calc(var(--d, 0s) + .4s); }
+    .hg-part path, .hg-part circle, .hg-part line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: hgLine .4s ease-out both; animation-delay: var(--d, 0s); }
+    .hg-swing { animation: hgSwing 2.4s ease-in-out infinite; transform-origin: 165px 48px; }
     .hangman-panel {
         background: linear-gradient(160deg, #eef1f8, #d7deeb); border-radius: 24px; padding: 20px 24px;
         color: #1c2130; max-width: 780px; width: 100%; margin: 0 auto; box-shadow: 0 24px 60px rgba(0,0,0,0.55);
@@ -287,8 +295,8 @@ function startMatchGame(container, vocabList) {
 const HANGMAN_MAX_WRONG = 5;
 const HANGMAN_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
-function hangmanPart(inner) {
-    return `<g style="transform-box:fill-box;transform-origin:center;animation:partPop .4s ease;">${inner}</g>`;
+function hangmanPart(inner, order) {
+    return `<g class="hg-part" style="--d:${(order * 0.18).toFixed(2)}s">${inner}</g>`;
 }
 
 function hangmanSvg(wrong) {
@@ -299,12 +307,17 @@ function hangmanSvg(wrong) {
             <line x1="56" y1="18" x2="165" y2="18"/>
             <line x1="165" y1="18" x2="165" y2="48"/>
         </g>`;
-    const s = 'stroke="#ff6b4a" stroke-width="9" stroke-linecap="round" fill="none"';
-    if (wrong >= 1) svg += hangmanPart(`<circle cx="165" cy="68" r="20" ${s}/>`);
-    if (wrong >= 2) svg += hangmanPart(`<line x1="165" y1="88" x2="165" y2="155" ${s}/>`);
-    if (wrong >= 3) svg += hangmanPart(`<line x1="165" y1="105" x2="132" y2="132" ${s}/>`);
-    if (wrong >= 4) svg += hangmanPart(`<line x1="165" y1="105" x2="198" y2="132" ${s}/>`);
-    if (wrong >= 5) svg += hangmanPart(`<line x1="165" y1="155" x2="136" y2="205" ${s}/><line x1="165" y1="155" x2="194" y2="205" ${s}/>`);
+    const s = 'stroke="#ff6b4a" stroke-width="9" stroke-linecap="round" fill="none" pathLength="1"';
+    let figure = '';
+    if (wrong >= 1) figure += hangmanPart(`<circle cx="165" cy="68" r="20" ${s}/>`, 0);
+    if (wrong >= 2) figure += hangmanPart(`<line x1="165" y1="88" x2="165" y2="155" ${s}/>`, 1);
+    if (wrong >= 3) figure += hangmanPart(`<line x1="165" y1="105" x2="132" y2="132" ${s}/>`, 2);
+    if (wrong >= 4) figure += hangmanPart(`<line x1="165" y1="105" x2="198" y2="132" ${s}/>`, 3);
+    if (wrong >= 5) figure += hangmanPart(`<line x1="165" y1="155" x2="136" y2="205" ${s}/><line x1="165" y1="155" x2="194" y2="205" ${s}/>`, 4);
+    if (figure) {
+        const swing = wrong >= HANGMAN_MAX_WRONG ? ' hg-swing' : '';
+        svg += `<g class="${swing.trim()}" style="transform-origin:165px 48px;">${figure}</g>`;
+    }
     svg += `</svg>`;
     return svg;
 }
