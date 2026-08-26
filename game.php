@@ -19,8 +19,6 @@ if (!$lesson) {
 }
 
 $vocab = json_decode($lesson['vocab'], true) ?: [];
-$warmup = json_decode($lesson['warmup'], true) ?: ['en' => '', 'ru' => '', 'kz' => ''];
-$questions = json_decode($lesson['questions'], true) ?: [];
 
 if (in_array($lesson['level'], ['beginner', 'elementary'], true) && $vocab) {
     $words = array_map(static fn($w) => mb_strtolower(trim($w['en'])), $vocab);
@@ -41,11 +39,9 @@ if (in_array($lesson['level'], ['beginner', 'elementary'], true) && $vocab) {
 }
 
 $hangman = extract_hangman_words(
-    (string)($warmup['en'] ?? ''),
-    array_column($questions, 'en'),
-    array_column($vocab, 'en'),
     (int)$lesson['id'],
-    (string)$lesson['level']
+    (string)$lesson['level'],
+    array_column($vocab, 'en')
 );
 
 $data = [
