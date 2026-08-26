@@ -7,7 +7,7 @@ require_once __DIR__ . '/includes/backgrounds.php';
 require_once __DIR__ . '/includes/hangman.php';
 
 $id = (int)($_GET['id'] ?? 0);
-$type = ($_GET['type'] ?? '') === 'hangman' ? 'hangman' : 'match';
+$type = in_array($_GET['type'] ?? '', ['hangman', 'memory'], true) ? $_GET['type'] : 'match';
 
 $stmt = db()->prepare('SELECT * FROM lessons WHERE id = ?');
 $stmt->execute([$id]);
@@ -20,7 +20,11 @@ if (!$lesson) {
 
 $vocab = json_decode($lesson['vocab'], true) ?: [];
 
-if (in_array($lesson['level'], ['beginner', 'elementary'], true) && $vocab) {
+// Attach a real photo wherever one exists for this word, regardless of
+// lesson level - the vocab_images table is shared across all lessons, so a
+// pre-intermediate lesson can still pick up a photo if it happens to use a
+// word (e.g. "coffee") that a beginner lesson already fetched an image for.
+if ($vocab) {
     $words = array_map(static fn($w) => mb_strtolower(trim($w['en'])), $vocab);
     $placeholders = implode(',', array_fill(0, count($words), '?'));
     $imgStmt = db()->prepare("SELECT word, image_path FROM vocab_images WHERE word IN ($placeholders)");
@@ -44,6 +48,12 @@ $hangman = extract_hangman_words(
     array_column($vocab, 'en')
 );
 
+// Memory Match needs at least enough photographed words to fill a game
+// board; otherwise pairing English words with their RU/KZ translation makes
+// more sense than forcing photos onto abstract vocabulary that has none.
+$withImg = array_filter($vocab, static fn($w) => !empty($w['img']));
+$memoryUseImages = count($withImg) >= min(8, count($vocab));
+
 $data = [
     'id' => (int)$lesson['id'],
     'topic' => $lesson['topic'],
@@ -51,14 +61,18 @@ $data = [
     'vocab' => $vocab,
     'hangman' => $hangman,
     'type' => $type,
+    'memoryUseImages' => $memoryUseImages,
 ];
+
+$typeLabels = ['hangman' => '🔠 Hangman', 'memory' => '🧠 Memory Match', 'match' => '🎯 Match'];
+$typeLabel = $typeLabels[$type];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= htmlspecialchars(($type === 'hangman' ? 'Hangman' : 'Match'), ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars($data['topic'], ENT_QUOTES, 'UTF-8') ?></title>
+<title><?= htmlspecialchars($typeLabel, ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars($data['topic'], ENT_QUOTES, 'UTF-8') ?></title>
 <link rel="stylesheet" href="<?= av('assets/css/backgrounds.css') ?>">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
@@ -167,6 +181,45 @@ $data = [
         .hangman-layout { flex-direction: column; align-items: center; }
         .hangman-alphabet { width: 100%; max-width: 280px; }
     }
+
+    /* Memory Match game */
+    @keyframes memCardIn { from { opacity: 0; transform: scale(0.6) translateY(14px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    @keyframes memMatchPulse { 0% { transform: rotateY(180deg) scale(1); } 40% { transform: rotateY(180deg) scale(1.08); } 100% { transform: rotateY(180deg) scale(1); } }
+    @keyframes memWrongShake { 0%, 100% { transform: rotateY(180deg) translateX(0) rotate(0); } 25% { transform: rotateY(180deg) translateX(-6px) rotate(-2deg); } 75% { transform: rotateY(180deg) translateX(6px) rotate(2deg); } }
+    @keyframes memSparkle { 0% { opacity: 0; transform: scale(0.4) rotate(0deg); } 50% { opacity: 1; } 100% { opacity: 0; transform: scale(1.3) rotate(25deg); } }
+    .memory-panel {
+        background: linear-gradient(160deg, #eef1f8, #d7deeb); border-radius: 24px; padding: 22px 24px;
+        color: #1c2130; max-width: 720px; width: 100%; margin: 0 auto; box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+    }
+    .memory-stats { display: flex; justify-content: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .memory-stat { background: #fff; border-radius: 999px; padding: 7px 16px; font-weight: 800; font-size: 0.85em; box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
+    .memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; perspective: 1000px; }
+    .mem-card { position: relative; aspect-ratio: 1; border: none; background: none; padding: 0; cursor: pointer; font-family: inherit; animation: memCardIn 0.4s ease both; animation-delay: calc(var(--i, 0) * 0.04s); }
+    .mem-card:disabled { cursor: default; }
+    .mem-card-inner {
+        position: relative; width: 100%; height: 100%; border-radius: 14px; transition: transform 0.5s cubic-bezier(.4,.2,.2,1);
+        transform-style: preserve-3d; box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+    .mem-card.is-flipped .mem-card-inner, .mem-card.is-matched .mem-card-inner { transform: rotateY(180deg); }
+    .mem-card.is-wrong .mem-card-inner { animation: memWrongShake 0.4s ease; }
+    .mem-card.is-matched .mem-card-inner { animation: memMatchPulse 0.4s ease; box-shadow: 0 0 0 3px #4ade80, 0 4px 16px rgba(74,222,128,0.5); }
+    .mem-card-back, .mem-card-front {
+        position: absolute; inset: 0; border-radius: 14px; backface-visibility: hidden;
+        display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .mem-card-back { background: linear-gradient(145deg, #5b5fef, #7c3aed); }
+    .mem-card-num { font-size: 1.5em; font-weight: 900; color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,0.35); }
+    .mem-card-front { background: #fff; transform: rotateY(180deg); padding: 4px; }
+    .mem-card-front img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+    .mem-word { font-weight: 800; font-size: 0.95em; text-align: center; color: #1c2130; padding: 4px; }
+    .mem-tr { text-align: center; font-size: 0.72em; line-height: 1.3; color: #1c2130; padding: 4px; }
+    .mem-tr div:first-child { font-weight: 800; margin-bottom: 2px; }
+    .mem-sparkle { position: absolute; inset: -10px; pointer-events: none; display: flex; align-items: center; justify-content: center; font-size: 1.4em; animation: memSparkle 0.6s ease; }
+    .memory-result { text-align: center; color: #1c2130; }
+    .memory-result h3 { font-size: 1.4em; margin-bottom: 6px; }
+    @media (max-width: 520px) {
+        .memory-grid { grid-template-columns: repeat(3, 1fr); }
+    }
 </style>
 </head>
 <body>
@@ -175,7 +228,7 @@ $data = [
 <div class="topbar">
     <a class="back-link" href="present.php?id=<?= $data['id'] ?>">‹ Back to Lesson</a>
     <div class="title-block">
-        <div class="t"><?= htmlspecialchars(($type === 'hangman' ? '🔠 Hangman' : '🎯 Match'), ENT_QUOTES, 'UTF-8') ?></div>
+        <div class="t"><?= htmlspecialchars($typeLabel, ENT_QUOTES, 'UTF-8') ?></div>
         <div class="l"><?= htmlspecialchars($data['topic'], ENT_QUOTES, 'UTF-8') ?></div>
     </div>
 </div>
@@ -417,6 +470,144 @@ function startHangmanGame(container, words, topic) {
     renderWord();
 }
 
+function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function startMemoryGame(container, vocabList, useImages) {
+    const PAIR_COUNT = Math.min(8, vocabList.length);
+    let cards = [];
+    let flipped = [];
+    let lock = false;
+    let moves = 0;
+    let matched = 0;
+    let startTime = 0;
+    let timerHandle = null;
+
+    function buildCards() {
+        const words = shuffleArray(vocabList).slice(0, PAIR_COUNT);
+        const list = [];
+        words.forEach((w, i) => {
+            list.push({ matchId: i, kind: 'word', en: w.en, text: w.en });
+            if (useImages && w.img) {
+                list.push({ matchId: i, kind: 'img', en: w.en, img: w.img });
+            } else {
+                list.push({ matchId: i, kind: 'tr', en: w.en, text: w.ru, text2: w.kz });
+            }
+        });
+        return shuffleArray(list).map((c, i) => ({ ...c, pos: i, isFlipped: false, isMatched: false, isWrong: false }));
+    }
+
+    function cardFace(c) {
+        if (c.kind === 'img') return `<img src="${esc(c.img)}" alt="">`;
+        if (c.kind === 'tr') return `<div class="mem-tr"><div>${esc(c.text)}</div><div>${esc(c.text2)}</div></div>`;
+        return `<div class="mem-word">${esc(c.text)}</div>`;
+    }
+
+    function cardHtml(c) {
+        const cls = ['mem-card'];
+        if (c.isFlipped || c.isMatched) cls.push('is-flipped');
+        if (c.isMatched) cls.push('is-matched');
+        if (c.isWrong) cls.push('is-wrong');
+        return `
+            <button type="button" class="${cls.join(' ')}" data-pos="${c.pos}" style="--i:${c.pos}" ${c.isMatched ? 'disabled' : ''}>
+                <div class="mem-card-inner">
+                    <div class="mem-card-back"><span class="mem-card-num">${c.pos + 1}</span></div>
+                    <div class="mem-card-front">${cardFace(c)}</div>
+                </div>
+                ${c.isMatched ? '<div class="mem-sparkle">✨</div>' : ''}
+            </button>
+        `;
+    }
+
+    function render() {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        container.innerHTML = `
+            <div class="memory-panel">
+                <div class="memory-stats">
+                    <div class="memory-stat">⏱ <span id="memTimer">${formatTime(elapsed)}</span></div>
+                    <div class="memory-stat">🔄 ${moves} moves</div>
+                    <div class="memory-stat">✅ ${matched}/${PAIR_COUNT}</div>
+                </div>
+                <div class="memory-grid">${cards.map(cardHtml).join('')}</div>
+            </div>
+        `;
+        container.querySelectorAll('.mem-card').forEach(btn => {
+            btn.addEventListener('click', () => onCardClick(parseInt(btn.dataset.pos, 10)));
+        });
+    }
+
+    function tick() {
+        const el = document.getElementById('memTimer');
+        if (el) el.textContent = formatTime(Math.floor((Date.now() - startTime) / 1000));
+    }
+
+    function onCardClick(pos) {
+        if (lock) return;
+        const card = cards[pos];
+        if (!card || card.isFlipped || card.isMatched) return;
+        card.isFlipped = true;
+        flipped.push(card);
+        render();
+        if (flipped.length === 2) {
+            lock = true;
+            moves++;
+            const [a, b] = flipped;
+            if (a.matchId === b.matchId) {
+                a.isMatched = true; b.isMatched = true;
+                matched++;
+                speak(a.en);
+                flipped = [];
+                lock = false;
+                render();
+                if (matched === PAIR_COUNT) setTimeout(finish, 500);
+            } else {
+                a.isWrong = true; b.isWrong = true;
+                render();
+                setTimeout(() => {
+                    a.isFlipped = false; b.isFlipped = false;
+                    a.isWrong = false; b.isWrong = false;
+                    flipped = [];
+                    lock = false;
+                    render();
+                }, 900);
+            }
+        }
+    }
+
+    function finish() {
+        clearInterval(timerHandle);
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const perfect = moves === PAIR_COUNT;
+        container.innerHTML = `
+            <div class="memory-panel">
+                <div class="memory-result">
+                    <h3>${perfect ? '🌟 Perfect memory!' : '🎉 Well done!'}</h3>
+                    <p>${matched} pairs matched in ${moves} moves and ${formatTime(elapsed)}.</p>
+                    <button type="button" class="restart-btn" id="memRestart">Play again</button>
+                </div>
+            </div>
+        `;
+        container.querySelector('#memRestart').addEventListener('click', start);
+    }
+
+    function start() {
+        cards = buildCards();
+        flipped = [];
+        lock = false;
+        moves = 0;
+        matched = 0;
+        startTime = Date.now();
+        clearInterval(timerHandle);
+        timerHandle = setInterval(tick, 1000);
+        render();
+    }
+
+    start();
+}
+
 document.addEventListener('click', e => {
     const speakOne = e.target.closest('.speak-btn');
     if (speakOne) {
@@ -428,6 +619,8 @@ document.addEventListener('click', e => {
 const mount = document.getElementById('gameMount');
 if (LESSON.type === 'hangman') {
     startHangmanGame(mount, LESSON.hangman, LESSON.topic);
+} else if (LESSON.type === 'memory') {
+    startMemoryGame(mount, LESSON.vocab, LESSON.memoryUseImages);
 } else {
     startMatchGame(mount, LESSON.vocab);
 }

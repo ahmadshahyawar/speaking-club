@@ -161,14 +161,26 @@ $data = [
     .speak-btn:hover { background: rgba(255,255,255,0.32); }
     body.read-aloud-off .speak-btn { display: none; }
 
-    /* Persistent top-right game links — each opens game.php in a new tab. */
-    .game-links { position: fixed; top: 64px; right: 26px; z-index: 22; display: flex; gap: 10px; }
-    .game-links a {
+    /* Top-right Games toggle - click to reveal the game list, click again
+       (or anywhere outside) to hide it. */
+    .game-menu { position: fixed; top: 64px; right: 26px; z-index: 22; }
+    .game-menu-toggle {
         background: rgba(0,0,0,0.35); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
         color: #fff; padding: 10px 18px; border-radius: 999px; cursor: pointer; font-weight: 700; font-size: 0.9em;
-        font-family: inherit; text-decoration: none; display: inline-block;
+        font-family: inherit; transition: background 0.2s;
     }
-    .game-links a:hover { background: rgba(0,0,0,0.55); }
+    .game-menu-toggle:hover, .game-menu-toggle.open { background: rgba(0,0,0,0.55); }
+    .game-menu-list {
+        position: absolute; top: calc(100% + 8px); right: 0; display: flex; flex-direction: column; gap: 8px;
+        opacity: 0; transform: translateY(-8px) scale(0.95); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .game-menu-list.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+    .game-menu-list a {
+        background: rgba(0,0,0,0.55); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
+        color: #fff; padding: 9px 18px; border-radius: 999px; cursor: pointer; font-weight: 700; font-size: 0.85em;
+        font-family: inherit; text-decoration: none; text-align: center; white-space: nowrap;
+    }
+    .game-menu-list a:hover { background: rgba(0,0,0,0.8); }
 
     /* Paired questions */
     .q-pair { display: flex; flex-direction: column; gap: 20px; }
@@ -198,9 +210,13 @@ $data = [
     </label>
 </div>
 
-<div class="game-links" id="gameLinks">
-    <a href="game.php?id=<?= $data['id'] ?>&type=match">🎯 Match</a>
-    <a href="game.php?id=<?= $data['id'] ?>&type=hangman">🔠 Hangman</a>
+<div class="game-menu" id="gameMenu">
+    <button type="button" class="game-menu-toggle" id="gameMenuToggle">🎮 Games</button>
+    <div class="game-menu-list" id="gameMenuList">
+        <a href="game.php?id=<?= $data['id'] ?>&type=match">🎯 Match</a>
+        <a href="game.php?id=<?= $data['id'] ?>&type=memory">🧠 Memory</a>
+        <a href="game.php?id=<?= $data['id'] ?>&type=hangman">🔠 Hangman</a>
+    </div>
 </div>
 
 <div class="slider-viewport">
@@ -345,6 +361,20 @@ ttsCheckbox.addEventListener('change', () => {
     document.body.classList.toggle('read-aloud-off', !ttsEnabled);
     localStorage.setItem('scReadAloud', ttsEnabled ? 'on' : 'off');
     if (!ttsEnabled) stopSequence();
+});
+
+const gameMenuToggle = document.getElementById('gameMenuToggle');
+const gameMenuList = document.getElementById('gameMenuList');
+gameMenuToggle.addEventListener('click', e => {
+    e.stopPropagation();
+    gameMenuToggle.classList.toggle('open');
+    gameMenuList.classList.toggle('open');
+});
+document.addEventListener('click', e => {
+    if (!e.target.closest('#gameMenu')) {
+        gameMenuToggle.classList.remove('open');
+        gameMenuList.classList.remove('open');
+    }
 });
 
 const track = document.getElementById('sliderTrack');
