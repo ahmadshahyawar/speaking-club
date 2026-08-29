@@ -120,7 +120,7 @@ $data = [
     .level-tag { text-align: center; opacity: 0.7; margin-bottom: 20px; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.1em; }
     .lang-block { margin-bottom: 12px; }
     .lang-block .en { font-size: 1.15em; font-weight: 700; margin-bottom: 8px; }
-    .lang-block .tr { font-size: 0.95em; opacity: 0.85; font-style: italic; line-height: 1.6; }
+    .lang-block .tr { font-size: 1.05em; opacity: 0.95; line-height: 1.6; }
     .question-num { opacity: 0.6; font-size: 0.85em; margin-bottom: 10px; text-align: center; }
 
     .nav-arrow {

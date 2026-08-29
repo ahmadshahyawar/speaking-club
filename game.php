@@ -123,7 +123,7 @@ $typeLabel = $typeLabels[$type];
     /* Match game */
     .match-prompt { margin-bottom: 18px; text-align: center; }
     .match-photo { width: 150px; height: 150px; object-fit: cover; border-radius: 16px; margin: 0 auto 14px; display: block; box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
-    .match-tr { font-size: 1.3em; font-weight: 700; line-height: 1.5; }
+    .match-tr { font-size: 1.3em; font-weight: 600; line-height: 1.5; }
     .match-feedback { min-height: 1.4em; font-weight: 700; margin-bottom: 14px; text-align: center; }
     .match-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .match-opt {
@@ -193,6 +193,9 @@ $typeLabel = $typeLabels[$type];
     }
     .memory-stats { display: flex; justify-content: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
     .memory-stat { background: #fff; border-radius: 999px; padding: 7px 16px; font-weight: 800; font-size: 0.85em; box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
+    .memory-peek-btn { border: none; cursor: pointer; font-family: inherit; background: #5b5fef; color: #fff; transition: background 0.15s; }
+    .memory-peek-btn:hover:not(:disabled) { background: #4b4fdf; }
+    .memory-peek-btn:disabled { opacity: 0.5; cursor: default; }
     .memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; perspective: 1000px; }
     .mem-card { position: relative; aspect-ratio: 1; border: none; background: none; padding: 0; cursor: pointer; font-family: inherit; animation: memCardIn 0.4s ease both; animation-delay: calc(var(--i, 0) * 0.04s); }
     .mem-card:disabled { cursor: default; }
@@ -217,8 +220,8 @@ $typeLabel = $typeLabels[$type];
     .mem-card-front { transform: rotateY(180deg); padding: 4px; background: #fff; }
     .mem-card-front img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
     .mem-word { font-weight: 800; font-size: 0.95em; text-align: center; color: #1c2130; padding: 4px; }
-    .mem-tr { text-align: center; font-size: 0.72em; line-height: 1.3; color: #1c2130; padding: 4px; }
-    .mem-tr div:first-child { font-weight: 800; margin-bottom: 2px; }
+    .mem-tr { text-align: center; font-size: 0.85em; line-height: 1.35; color: #1c2130; padding: 4px; }
+    .mem-tr div:first-child { font-weight: 700; margin-bottom: 3px; }
     .mem-sparkle { position: absolute; inset: -10px; pointer-events: none; display: flex; align-items: center; justify-content: center; font-size: 1.4em; animation: memSparkle 0.6s ease; }
     .memory-result { text-align: center; color: #1c2130; }
     .memory-result h3 { font-size: 1.4em; margin-bottom: 6px; }
@@ -625,6 +628,7 @@ function startMemoryGame(container, vocabList, useImages) {
         container.innerHTML = `
             <div class="memory-panel">
                 <div class="memory-stats">
+                    <button type="button" class="memory-stat memory-peek-btn" id="memPeek">👀 Peek</button>
                     <div class="memory-stat">⏱ <span id="memTimer">0:00</span></div>
                     <div class="memory-stat">🔄 <span id="memMoves">0</span> moves</div>
                     <div class="memory-stat">✅ <span id="memMatched">0</span>/${PAIR_COUNT}</div>
@@ -637,7 +641,24 @@ function startMemoryGame(container, vocabList, useImages) {
             const btn = e.target.closest('.mem-card');
             if (btn) onCardClick(parseInt(btn.dataset.pos, 10));
         });
+        container.querySelector('#memPeek').addEventListener('click', peek);
         timerHandle = setInterval(tick, 1000);
+    }
+
+    // Flips every unmatched card face-up for a couple of seconds so students
+    // can study the board before playing, then flips them back down.
+    function peek() {
+        if (lock) return;
+        lock = true;
+        const peekBtn = container.querySelector('#memPeek');
+        if (peekBtn) peekBtn.disabled = true;
+        const toReveal = cards.filter(c => !c.isMatched);
+        toReveal.forEach(c => { c.isFlipped = true; updateCardEl(c.pos); });
+        setTimeout(() => {
+            toReveal.forEach(c => { c.isFlipped = false; updateCardEl(c.pos); });
+            lock = false;
+            if (peekBtn) peekBtn.disabled = false;
+        }, 2000);
     }
 
     start();
