@@ -185,9 +185,36 @@ $data = [
     }
     .game-menu-list a:hover { background: rgba(0,0,0,0.8); }
 
+    /* Quick EN -> RU/KZ lookup, for clarifying a word on the fly mid-class. */
+    .translate-menu { position: fixed; top: 112px; right: 26px; z-index: 21; }
+    .translate-panel {
+        position: absolute; top: calc(100% + 8px); right: 0; width: 320px;
+        background: rgba(20,22,34,0.92); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 16px; padding: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+        opacity: 0; transform: translateY(-8px) scale(0.95); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .translate-panel.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+    .translate-form { display: flex; gap: 8px; margin-bottom: 8px; }
+    .translate-form input {
+        flex: 1 1 auto; min-width: 0; padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.3);
+        background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em;
+    }
+    .translate-form input::placeholder { color: rgba(255,255,255,0.5); }
+    .translate-form button {
+        background: #5b5fef; color: #fff; border: none; padding: 9px 16px; border-radius: 999px;
+        font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.85em; flex: 0 0 auto;
+    }
+    .translate-form button:hover { background: #4b4fdf; }
+    .translate-status { min-height: 1.2em; font-size: 0.78em; opacity: 0.75; margin-bottom: 6px; }
+    .translate-table-wrap { max-height: 240px; overflow-y: auto; }
+    .translate-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+    .translate-table th { text-align: left; padding: 6px 8px; opacity: 0.6; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.2); }
+    .translate-table td { padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,0.1); vertical-align: top; }
+    .translate-table tr:first-child td { font-weight: 700; }
+
     /* Paired questions */
     .q-pair { display: flex; flex-direction: column; gap: 20px; }
-    .q-block { text-align: left; }
+    .q-block { text-align: left; padding-left: 18px; }
     .q-index {
         display: inline-flex; align-items: center; justify-content: center; background: rgba(91,95,239,0.6);
         border-radius: 999px; width: 26px; height: 26px; font-weight: 700; font-size: 0.85em; margin-bottom: 8px;
@@ -220,6 +247,23 @@ $data = [
         <a href="game.php?id=<?= $data['id'] ?>&type=memory">🧠 Memory</a>
         <a href="game.php?id=<?= $data['id'] ?>&type=hangman">🔠 Hangman</a>
         <a href="game.php?id=<?= $data['id'] ?>&type=whoami">❓ Who Am I?</a>
+    </div>
+</div>
+
+<div class="translate-menu" id="translateMenu">
+    <button type="button" class="game-menu-toggle" id="translateMenuToggle">🔤 Translate</button>
+    <div class="translate-panel" id="translatePanel">
+        <form id="translateForm" class="translate-form">
+            <input type="text" id="translateInput" placeholder="Type an English word..." autocomplete="off">
+            <button type="submit">Go</button>
+        </form>
+        <div id="translateStatus" class="translate-status"></div>
+        <div class="translate-table-wrap">
+            <table class="translate-table" id="translateTable">
+                <thead><tr><th>EN</th><th>RU</th><th>KZ</th></tr></thead>
+                <tbody id="translateTableBody"></tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -379,6 +423,48 @@ document.addEventListener('click', e => {
         gameMenuToggle.classList.remove('open');
         gameMenuList.classList.remove('open');
     }
+});
+
+const translateMenuToggle = document.getElementById('translateMenuToggle');
+const translatePanel = document.getElementById('translatePanel');
+const translateForm = document.getElementById('translateForm');
+const translateInput = document.getElementById('translateInput');
+const translateStatus = document.getElementById('translateStatus');
+const translateTableBody = document.getElementById('translateTableBody');
+
+translateMenuToggle.addEventListener('click', e => {
+    e.stopPropagation();
+    translateMenuToggle.classList.toggle('open');
+    translatePanel.classList.toggle('open');
+    if (translatePanel.classList.contains('open')) translateInput.focus();
+});
+document.addEventListener('click', e => {
+    if (!e.target.closest('#translateMenu')) {
+        translateMenuToggle.classList.remove('open');
+        translatePanel.classList.remove('open');
+    }
+});
+
+translateForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const word = translateInput.value.trim();
+    if (!word) return;
+    translateStatus.textContent = 'Looking up...';
+    fetch('api/quick_translate.php?word=' + encodeURIComponent(word))
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                translateStatus.textContent = data.error;
+                return;
+            }
+            translateStatus.textContent = data.source === 'lesson' ? 'From this app\'s own lessons' : 'Auto-translated';
+            const row = document.createElement('tr');
+            row.innerHTML = `<td>${esc(data.en)}</td><td>${esc(data.ru)}</td><td>${esc(data.kz)}</td>`;
+            translateTableBody.insertBefore(row, translateTableBody.firstChild);
+            translateInput.value = '';
+            translateInput.focus();
+        })
+        .catch(() => { translateStatus.textContent = 'Lookup failed - check your connection.'; });
 });
 
 const track = document.getElementById('sliderTrack');
