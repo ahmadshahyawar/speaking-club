@@ -114,7 +114,7 @@ $typeLabel = $typeLabels[$type];
     }
     .speak-btn:hover { background: rgba(255,255,255,0.32); }
 
-    .game-wrap { position: relative; z-index: 2; max-width: 780px; width: 100%; }
+    .game-wrap { position: relative; z-index: 2; max-width: 940px; width: 100%; }
     .restart-btn {
         display: block; margin: 20px auto 0; background: #5b5fef; font-family: inherit;
         color: #fff; border: none; padding: 11px 26px; border-radius: 999px; cursor: pointer; font-weight: 700;
@@ -189,14 +189,16 @@ $typeLabel = $typeLabels[$type];
     @keyframes memSparkle { 0% { opacity: 0; transform: scale(0.4) rotate(0deg); } 50% { opacity: 1; } 100% { opacity: 0; transform: scale(1.3) rotate(25deg); } }
     .memory-panel {
         background: linear-gradient(160deg, #eef1f8, #d7deeb); border-radius: 24px; padding: 22px 24px;
-        color: #1c2130; max-width: 720px; width: 100%; margin: 0 auto; box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+        color: #1c2130; max-width: 920px; width: 100%; margin: 0 auto; box-shadow: 0 24px 60px rgba(0,0,0,0.55);
     }
     .memory-stats { display: flex; justify-content: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
     .memory-stat { background: #fff; border-radius: 999px; padding: 7px 16px; font-weight: 800; font-size: 0.85em; box-shadow: 0 3px 10px rgba(0,0,0,0.15); }
     .memory-peek-btn { border: none; cursor: pointer; font-family: inherit; background: #5b5fef; color: #fff; transition: background 0.15s; }
     .memory-peek-btn:hover:not(:disabled) { background: #4b4fdf; }
     .memory-peek-btn:disabled { opacity: 0.5; cursor: default; }
-    .memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; perspective: 1000px; }
+    /* Wide and short (8 columns x 2 rows for 16 cards) instead of tall and
+       narrow, so the whole board fits on screen without scrolling. */
+    .memory-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; perspective: 1000px; }
     .mem-card { position: relative; aspect-ratio: 1; border: none; background: none; padding: 0; cursor: pointer; font-family: inherit; animation: memCardIn 0.4s ease both; animation-delay: calc(var(--i, 0) * 0.04s); }
     .mem-card:disabled { cursor: default; }
     .mem-card-inner {
@@ -225,6 +227,9 @@ $typeLabel = $typeLabels[$type];
     .mem-sparkle { position: absolute; inset: -10px; pointer-events: none; display: flex; align-items: center; justify-content: center; font-size: 1.4em; animation: memSparkle 0.6s ease; }
     .memory-result { text-align: center; color: #1c2130; }
     .memory-result h3 { font-size: 1.4em; margin-bottom: 6px; }
+    @media (max-width: 900px) {
+        .memory-grid { grid-template-columns: repeat(4, 1fr); }
+    }
     @media (max-width: 520px) {
         .memory-grid { grid-template-columns: repeat(3, 1fr); }
     }
