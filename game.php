@@ -48,6 +48,26 @@ $hangman = extract_hangman_words(
     array_column($vocab, 'en')
 );
 
+// Show a photo alongside the revealed word when one exists, same
+// vocab_images lookup used for the lesson's own vocabulary above.
+if ($hangman) {
+    $hgWords = array_map(static fn($h) => mb_strtolower(trim($h['word'])), $hangman);
+    $placeholders = implode(',', array_fill(0, count($hgWords), '?'));
+    $hgImgStmt = db()->prepare("SELECT word, image_path FROM vocab_images WHERE word IN ($placeholders)");
+    $hgImgStmt->execute($hgWords);
+    $hgImageMap = [];
+    foreach ($hgImgStmt->fetchAll() as $row) {
+        $hgImageMap[$row['word']] = $row['image_path'];
+    }
+    foreach ($hangman as &$h) {
+        $key = mb_strtolower(trim($h['word']));
+        if (isset($hgImageMap[$key])) {
+            $h['img'] = $hgImageMap[$key];
+        }
+    }
+    unset($h);
+}
+
 // Memory Match needs at least enough photographed words to fill a game
 // board; otherwise pairing English words with their RU/KZ translation makes
 // more sense than forcing photos onto abstract vocabulary that has none.
@@ -177,6 +197,7 @@ $typeLabel = $typeLabels[$type];
     .hangman-hint-box { margin-top: 10px; background: rgba(91,95,239,0.1); border-radius: 12px; padding: 10px 14px; font-size: 0.85em; text-align: left; max-width: 400px; line-height: 1.5; }
     .hangman-result { text-align: center; color: #1c2130; }
     .hangman-result h3 { font-size: 1.4em; margin-bottom: 6px; }
+    .hangman-result-img { width: 140px; height: 140px; object-fit: cover; border-radius: 16px; margin: 10px auto; display: block; box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
     @media (max-width: 640px) {
         .hangman-layout { flex-direction: column; align-items: center; }
         .hangman-alphabet { width: 100%; max-width: 280px; }
@@ -400,7 +421,7 @@ function startHangmanGame(container, words, topic) {
 
     function renderWord() {
         if (idx >= words.length) { renderComplete(); return; }
-        const { word, clue } = words[idx];
+        const { word, clue, img } = words[idx];
         const letters = word.toUpperCase().split('');
         const guessed = new Set();
         let wrong = 0;
@@ -456,6 +477,7 @@ function startHangmanGame(container, words, topic) {
                     ${hangmanSvg(wrongCount)}
                     <div class="hangman-result">
                         <h3>${won ? '🎉 Correct!' : '💀 He got hanged!'}</h3>
+                        ${img ? `<img class="hangman-result-img" src="${esc(img)}" alt="">` : ''}
                         <p>The word was <strong>${esc(word.toUpperCase())}</strong></p>
                         <button type="button" class="restart-btn" id="hgNext">${idx + 1 < words.length ? 'Next word' : 'See results'}</button>
                     </div>
