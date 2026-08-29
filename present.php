@@ -219,6 +219,7 @@ $data = [
         <a href="game.php?id=<?= $data['id'] ?>&type=match">🎯 Match</a>
         <a href="game.php?id=<?= $data['id'] ?>&type=memory">🧠 Memory</a>
         <a href="game.php?id=<?= $data['id'] ?>&type=hangman">🔠 Hangman</a>
+        <a href="game.php?id=<?= $data['id'] ?>&type=whoami">❓ Who Am I?</a>
     </div>
 </div>
 

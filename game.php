@@ -5,9 +5,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/backgrounds.php';
 require_once __DIR__ . '/includes/hangman.php';
+require_once __DIR__ . '/includes/whoami.php';
 
 $id = (int)($_GET['id'] ?? 0);
-$type = in_array($_GET['type'] ?? '', ['hangman', 'memory'], true) ? $_GET['type'] : 'match';
+$type = in_array($_GET['type'] ?? '', ['hangman', 'memory', 'whoami'], true) ? $_GET['type'] : 'match';
 
 $stmt = db()->prepare('SELECT * FROM lessons WHERE id = ?');
 $stmt->execute([$id]);
@@ -18,55 +19,42 @@ if (!$lesson) {
     die('Lesson not found.');
 }
 
-$vocab = json_decode($lesson['vocab'], true) ?: [];
-
-// Attach a real photo wherever one exists for this word, regardless of
-// lesson level - the vocab_images table is shared across all lessons, so a
-// pre-intermediate lesson can still pick up a photo if it happens to use a
-// word (e.g. "coffee") that a beginner lesson already fetched an image for.
-if ($vocab) {
-    $words = array_map(static fn($w) => mb_strtolower(trim($w['en'])), $vocab);
+// Attaches a real photo wherever one exists for the given word, regardless
+// of lesson level - the vocab_images table is shared across all lessons, so
+// e.g. a pre-intermediate lesson/game can still pick up a photo if it
+// happens to use a word a beginner lesson already fetched an image for.
+function attach_word_images(array $items, string $wordField): array {
+    if (!$items) return $items;
+    $words = array_map(static fn($item) => mb_strtolower(trim($item[$wordField])), $items);
     $placeholders = implode(',', array_fill(0, count($words), '?'));
-    $imgStmt = db()->prepare("SELECT word, image_path FROM vocab_images WHERE word IN ($placeholders)");
-    $imgStmt->execute($words);
+    $stmt = db()->prepare("SELECT word, image_path FROM vocab_images WHERE word IN ($placeholders)");
+    $stmt->execute($words);
     $imageMap = [];
-    foreach ($imgStmt->fetchAll() as $row) {
+    foreach ($stmt->fetchAll() as $row) {
         $imageMap[$row['word']] = $row['image_path'];
     }
-    foreach ($vocab as &$w) {
-        $key = mb_strtolower(trim($w['en']));
+    foreach ($items as &$item) {
+        $key = mb_strtolower(trim($item[$wordField]));
         if (isset($imageMap[$key])) {
-            $w['img'] = $imageMap[$key];
+            $item['img'] = $imageMap[$key];
         }
     }
-    unset($w);
+    unset($item);
+    return $items;
 }
+
+$vocab = json_decode($lesson['vocab'], true) ?: [];
+$vocab = attach_word_images($vocab, 'en');
 
 $hangman = extract_hangman_words(
     (int)$lesson['id'],
     (string)$lesson['level'],
     array_column($vocab, 'en')
 );
+$hangman = attach_word_images($hangman, 'word');
 
-// Show a photo alongside the revealed word when one exists, same
-// vocab_images lookup used for the lesson's own vocabulary above.
-if ($hangman) {
-    $hgWords = array_map(static fn($h) => mb_strtolower(trim($h['word'])), $hangman);
-    $placeholders = implode(',', array_fill(0, count($hgWords), '?'));
-    $hgImgStmt = db()->prepare("SELECT word, image_path FROM vocab_images WHERE word IN ($placeholders)");
-    $hgImgStmt->execute($hgWords);
-    $hgImageMap = [];
-    foreach ($hgImgStmt->fetchAll() as $row) {
-        $hgImageMap[$row['word']] = $row['image_path'];
-    }
-    foreach ($hangman as &$h) {
-        $key = mb_strtolower(trim($h['word']));
-        if (isset($hgImageMap[$key])) {
-            $h['img'] = $hgImageMap[$key];
-        }
-    }
-    unset($h);
-}
+$whoami = extract_whoami_words((int)$lesson['id'], (string)$lesson['level']);
+$whoami = attach_word_images($whoami, 'word');
 
 // Memory Match needs at least enough photographed words to fill a game
 // board; otherwise pairing English words with their RU/KZ translation makes
@@ -80,11 +68,12 @@ $data = [
     'level' => $lesson['level'],
     'vocab' => $vocab,
     'hangman' => $hangman,
+    'whoami' => $whoami,
     'type' => $type,
     'memoryUseImages' => $memoryUseImages,
 ];
 
-$typeLabels = ['hangman' => '🔠 Hangman', 'memory' => '🧠 Memory Match', 'match' => '🎯 Match'];
+$typeLabels = ['hangman' => '🔠 Hangman', 'memory' => '🧠 Memory Match', 'match' => '🎯 Match', 'whoami' => '❓ Who Am I?'];
 $typeLabel = $typeLabels[$type];
 ?>
 <!DOCTYPE html>
@@ -157,14 +146,37 @@ $typeLabel = $typeLabels[$type];
 
     /* Hangman game */
     @keyframes keyShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-    /* Each new body part sketches itself in (stroke draws on), then lands with a
-       springy little bounce - much more alive than a flat fade/scale-in. */
+    @keyframes keyPop { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+    /* The newest body part sketches itself in (stroke draws on) then lands
+       with a springy bounce; parts already on screen stay put instead of
+       replaying every time a new wrong guess redraws the figure. */
     @keyframes hgLine { to { stroke-dashoffset: 0; } }
     @keyframes hgSettle { from { transform: scale(1.3); } to { transform: scale(1); } }
     @keyframes hgSwing { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
-    .hg-part { transform-box: fill-box; transform-origin: center; animation: hgSettle .35s cubic-bezier(.34,1.56,.64,1) both; animation-delay: calc(var(--d, 0s) + .4s); }
-    .hg-part path, .hg-part circle, .hg-part line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: hgLine .4s ease-out both; animation-delay: var(--d, 0s); }
+    .hg-part { transform-box: fill-box; transform-origin: center; animation: hgSettle .35s cubic-bezier(.34,1.56,.64,1) both; animation-delay: .4s; }
+    .hg-part path, .hg-part circle, .hg-part line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: hgLine .4s ease-out both; }
     .hg-swing { animation: hgSwing 2.4s ease-in-out infinite; transform-origin: 165px 48px; }
+    @keyframes hgHeartBreak { 0% { transform: scale(1) rotate(0); } 40% { transform: scale(1.35) rotate(-10deg); } 100% { transform: scale(1) rotate(0); opacity: 0.5; } }
+    .hangman-hearts { display: flex; gap: 5px; margin-top: 10px; font-size: 1.25em; }
+    .hg-heart.broken { animation: hgHeartBreak .4s ease; }
+    @keyframes hgTileIn { from { transform: scale(0.5) rotate(-8deg); opacity: 0; } 60% { transform: scale(1.15) rotate(3deg); } to { transform: scale(1) rotate(0); opacity: 1; } }
+    .hg-tile.filled { animation: hgTileIn .3s ease-out; }
+    @keyframes hgConfettiBurst {
+        0% { transform: translate(-50%, -50%) translate(0, 0) rotate(0) scale(0.6); opacity: 1; }
+        100% { transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) rotate(var(--r)) scale(1); opacity: 0; }
+    }
+    .hg-confetti-wrap { position: relative; }
+    .hg-confetti { position: absolute; left: 50%; top: 30%; font-size: 1.5em; pointer-events: none; animation: hgConfettiBurst .9s ease-out both; }
+    @keyframes hgLoseShake {
+        0%, 100% { transform: translateX(0) rotate(0); }
+        20% { transform: translateX(-10px) rotate(-1deg); }
+        40% { transform: translateX(10px) rotate(1deg); }
+        60% { transform: translateX(-6px) rotate(-0.5deg); }
+        80% { transform: translateX(6px) rotate(0.5deg); }
+    }
+    .hangman-panel.hg-lose { animation: hgLoseShake .5s ease; }
+    @keyframes hgResultPop { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .hangman-result h3 { animation: hgResultPop .35s cubic-bezier(.34,1.56,.64,1) both; }
     .hangman-panel {
         background: linear-gradient(160deg, #eef1f8, #d7deeb); border-radius: 24px; padding: 20px 24px;
         color: #1c2130; max-width: 780px; width: 100%; margin: 0 auto; box-shadow: 0 24px 60px rgba(0,0,0,0.55);
@@ -181,14 +193,13 @@ $typeLabel = $typeLabels[$type];
     }
     .letter-btn:hover:not(:disabled) { transform: scale(1.08); }
     .letter-btn:disabled { opacity: 0.35; cursor: default; }
-    .letter-btn.correct { background: #4ade80; color: #fff; }
+    .letter-btn.correct { background: #4ade80; color: #fff; animation: keyPop .3s ease; }
     .letter-btn.wrong { background: #f87171; color: #fff; animation: keyShake 0.4s; }
     .hangman-word-tiles { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
     .hg-tile {
         width: 34px; height: 42px; border-radius: 8px; background: #fbbf24; display: flex; align-items: center;
         justify-content: center; font-weight: 800; font-size: 1.15em; color: #1c2130; box-shadow: 0 3px 8px rgba(0,0,0,0.22);
     }
-    .hangman-status { opacity: 0.65; margin-top: 10px; font-size: 0.82em; }
     .hangman-clue-box { margin-top: 12px; font-size: 0.95em; text-align: center; max-width: 400px; line-height: 1.45; }
     .hangman-hint-btn {
         margin-top: 10px; background: #5b5fef; color: #fff; border: none; padding: 7px 18px; border-radius: 999px;
@@ -254,6 +265,33 @@ $typeLabel = $typeLabels[$type];
     @media (max-width: 520px) {
         .memory-grid { grid-template-columns: repeat(3, 1fr); }
     }
+
+    /* Who Am I? game */
+    @keyframes whoamiBob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-7px) rotate(3deg); } }
+    @keyframes whoamiHintIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .whoami-header { text-align: center; margin-bottom: 12px; }
+    .whoami-question {
+        font-size: 1.6em; font-weight: 900; letter-spacing: 0.02em; margin-bottom: 8px;
+        background: linear-gradient(135deg, #7c3aed, #5b5fef); -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .whoami-avatar { font-size: 3.6em; text-align: center; margin-bottom: 4px; animation: whoamiBob 2.4s ease-in-out infinite; }
+    .whoami-hints { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; width: 100%; max-width: 420px; }
+    .whoami-hint-btn {
+        background: #5b5fef; color: #fff; border: none; padding: 9px 16px; border-radius: 999px; font-weight: 700;
+        cursor: pointer; font-family: inherit; font-size: 0.85em; width: 100%; transition: background 0.15s, transform 0.15s;
+    }
+    .whoami-hint-btn:hover:not(:disabled) { background: #4b4fdf; transform: scale(1.02); }
+    .whoami-hint-btn:disabled { opacity: 0.35; cursor: default; }
+    .whoami-hint-card {
+        background: rgba(91,95,239,0.12); border-radius: 12px; padding: 10px 14px; font-size: 0.9em;
+        line-height: 1.4; text-align: left; animation: whoamiHintIn 0.35s ease both;
+    }
+    .whoami-hint-num { font-weight: 800; color: #5b5fef; margin-right: 4px; }
+    .whoami-giveup-btn {
+        margin-top: 14px; background: none; border: 1px solid rgba(28,33,48,0.3); color: #1c2130;
+        padding: 6px 14px; border-radius: 999px; font-size: 0.75em; cursor: pointer; font-family: inherit; opacity: 0.7;
+    }
+    .whoami-giveup-btn:hover { opacity: 1; }
 </style>
 </head>
 <body>
@@ -378,8 +416,11 @@ function startMatchGame(container, vocabList) {
 const HANGMAN_MAX_WRONG = 5;
 const HANGMAN_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
-function hangmanPart(inner, order) {
-    return `<g class="hg-part" style="--d:${(order * 0.18).toFixed(2)}s">${inner}</g>`;
+// Only the part that just got added plays the sketch-in animation - parts
+// already on screen render as plain static markup instead of replaying
+// their entrance every time a new wrong guess redraws the whole SVG.
+function hangmanPart(inner, animate) {
+    return animate ? `<g class="hg-part">${inner}</g>` : `<g>${inner}</g>`;
 }
 
 function hangmanSvg(wrong) {
@@ -392,17 +433,32 @@ function hangmanSvg(wrong) {
         </g>`;
     const s = 'stroke="#ff6b4a" stroke-width="9" stroke-linecap="round" fill="none" pathLength="1"';
     let figure = '';
-    if (wrong >= 1) figure += hangmanPart(`<circle cx="165" cy="68" r="20" ${s}/>`, 0);
-    if (wrong >= 2) figure += hangmanPart(`<line x1="165" y1="88" x2="165" y2="155" ${s}/>`, 1);
-    if (wrong >= 3) figure += hangmanPart(`<line x1="165" y1="105" x2="132" y2="132" ${s}/>`, 2);
-    if (wrong >= 4) figure += hangmanPart(`<line x1="165" y1="105" x2="198" y2="132" ${s}/>`, 3);
-    if (wrong >= 5) figure += hangmanPart(`<line x1="165" y1="155" x2="136" y2="205" ${s}/><line x1="165" y1="155" x2="194" y2="205" ${s}/>`, 4);
+    if (wrong >= 1) figure += hangmanPart(`<circle cx="165" cy="68" r="20" ${s}/>`, wrong === 1);
+    if (wrong >= 2) figure += hangmanPart(`<line x1="165" y1="88" x2="165" y2="155" ${s}/>`, wrong === 2);
+    if (wrong >= 3) figure += hangmanPart(`<line x1="165" y1="105" x2="132" y2="132" ${s}/>`, wrong === 3);
+    if (wrong >= 4) figure += hangmanPart(`<line x1="165" y1="105" x2="198" y2="132" ${s}/>`, wrong === 4);
+    if (wrong >= 5) figure += hangmanPart(`<line x1="165" y1="155" x2="136" y2="205" ${s}/><line x1="165" y1="155" x2="194" y2="205" ${s}/>`, wrong === 5);
     if (figure) {
         const swing = wrong >= HANGMAN_MAX_WRONG ? ' hg-swing' : '';
         svg += `<g class="${swing.trim()}" style="transform-origin:165px 48px;">${figure}</g>`;
     }
     svg += `</svg>`;
     return svg;
+}
+
+function hangmanConfetti() {
+    const emojis = ['🎉', '✨', '⭐', '🎊', '💫'];
+    let html = '';
+    for (let i = 0; i < 10; i++) {
+        const angle = (i / 10) * 360 + (Math.random() * 20 - 10);
+        const dist = 60 + Math.random() * 50;
+        const tx = Math.round(Math.cos(angle * Math.PI / 180) * dist);
+        const ty = Math.round(Math.sin(angle * Math.PI / 180) * dist);
+        const rot = Math.round(Math.random() * 360);
+        const delay = (Math.random() * 0.15).toFixed(2);
+        html += `<span class="hg-confetti" style="--tx:${tx}px;--ty:${ty}px;--r:${rot}deg;animation-delay:${delay}s">${emojis[i % emojis.length]}</span>`;
+    }
+    return html;
 }
 
 function startHangmanGame(container, words, topic) {
@@ -413,10 +469,14 @@ function startHangmanGame(container, words, topic) {
     let idx = 0;
     let solved = 0;
 
-    function keyBtn(l, guessed, letters) {
-        let cls = 'letter-btn';
-        if (guessed.has(l)) cls += letters.includes(l) ? ' correct' : ' wrong';
-        return `<button type="button" class="${cls}" data-l="${l}" ${guessed.has(l) ? 'disabled' : ''}>${l}</button>`;
+    function keyBtn(l) {
+        return `<button type="button" class="letter-btn" data-l="${l}">${l}</button>`;
+    }
+
+    function heartsHtml() {
+        let h = '';
+        for (let i = 0; i < HANGMAN_MAX_WRONG; i++) h += `<span class="hg-heart" data-i="${i}">❤️</span>`;
+        return h;
     }
 
     function renderWord() {
@@ -425,58 +485,77 @@ function startHangmanGame(container, words, topic) {
         const letters = word.toUpperCase().split('');
         const guessed = new Set();
         let wrong = 0;
-        let hintShown = false;
 
-        function draw() {
-            const tiles = letters.map(l => `<div class="hg-tile ${guessed.has(l) ? 'filled' : ''}">${guessed.has(l) ? l : ''}</div>`).join('');
-            container.innerHTML = `
-                <div class="hangman-panel">
-                    <div class="hangman-topline">
-                        <div class="hangman-pill">${esc(topic)}</div>
-                        <div class="hangman-pill">Word ${idx + 1} of ${words.length}</div>
-                    </div>
-                    <div class="hangman-layout">
-                        <div class="hangman-left">
-                            ${hangmanSvg(wrong)}
-                            <div class="hangman-word-tiles">${tiles}</div>
-                            <div class="hangman-status">Wrong guesses: ${wrong} / ${HANGMAN_MAX_WRONG}</div>
-                            <div class="hangman-clue-box">${esc(clue.en)}</div>
-                            <button type="button" class="hangman-hint-btn" id="hgHint">💡 Hint (RU / KZ)</button>
-                            <div class="hangman-hint-box" id="hgHintBox" hidden>
-                                <div><strong>RU:</strong> ${esc(clue.ru)}</div>
-                                <div><strong>KZ:</strong> ${esc(clue.kz)}</div>
-                            </div>
-                        </div>
-                        <div class="hangman-alphabet">${HANGMAN_ALPHABET.map(l => keyBtn(l, guessed, letters)).join('')}</div>
-                    </div>
+        // Built once per word - each guess afterward only touches the one
+        // tile/letter-button/heart/SVG that actually changed, instead of
+        // rebuilding the whole panel (which used to flash on every click).
+        const tiles = letters.map((l, i) => `<div class="hg-tile" data-i="${i}"></div>`).join('');
+        container.innerHTML = `
+            <div class="hangman-panel">
+                <div class="hangman-topline">
+                    <div class="hangman-pill">${esc(topic)}</div>
+                    <div class="hangman-pill">Word ${idx + 1} of ${words.length}</div>
                 </div>
-            `;
-            const hintBox = container.querySelector('#hgHintBox');
-            if (hintShown) hintBox.hidden = false;
-            container.querySelector('#hgHint').addEventListener('click', () => {
-                hintShown = true;
-                hintBox.hidden = false;
-            });
-            container.querySelectorAll('.letter-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const l = btn.dataset.l;
-                    guessed.add(l);
-                    if (!letters.includes(l)) wrong++;
-                    if (wrong >= HANGMAN_MAX_WRONG) { finishWord(false, wrong); return; }
-                    if (letters.every(l2 => guessed.has(l2))) { finishWord(true, wrong); return; }
-                    draw();
+                <div class="hangman-layout">
+                    <div class="hangman-left">
+                        <div id="hgSvgWrap">${hangmanSvg(0)}</div>
+                        <div class="hangman-hearts" id="hgHearts">${heartsHtml()}</div>
+                        <div class="hangman-word-tiles">${tiles}</div>
+                        <div class="hangman-clue-box">${esc(clue.en)}</div>
+                        <button type="button" class="hangman-hint-btn" id="hgHint">💡 Hint (RU / KZ)</button>
+                        <div class="hangman-hint-box" id="hgHintBox" hidden>
+                            <div><strong>RU:</strong> ${esc(clue.ru)}</div>
+                            <div><strong>KZ:</strong> ${esc(clue.kz)}</div>
+                        </div>
+                    </div>
+                    <div class="hangman-alphabet" id="hgAlpha">${HANGMAN_ALPHABET.map(keyBtn).join('')}</div>
+                </div>
+            </div>
+        `;
+        const svgWrap = container.querySelector('#hgSvgWrap');
+        const alphaEl = container.querySelector('#hgAlpha');
+        const hintBox = container.querySelector('#hgHintBox');
+        container.querySelector('#hgHint').addEventListener('click', () => {
+            hintBox.hidden = false;
+        });
+        alphaEl.addEventListener('click', e => {
+            const btn = e.target.closest('.letter-btn');
+            if (btn && !btn.disabled) onLetterClick(btn.dataset.l);
+        });
+
+        function onLetterClick(l) {
+            guessed.add(l);
+            const btn = alphaEl.querySelector(`.letter-btn[data-l="${l}"]`);
+            const isCorrect = letters.includes(l);
+            btn.disabled = true;
+            btn.classList.add(isCorrect ? 'correct' : 'wrong');
+            if (isCorrect) {
+                letters.forEach((ltr, i) => {
+                    if (ltr === l) {
+                        const tile = container.querySelector(`.hg-tile[data-i="${i}"]`);
+                        tile.textContent = l;
+                        tile.classList.add('filled');
+                    }
                 });
-            });
+            } else {
+                wrong++;
+                svgWrap.innerHTML = hangmanSvg(wrong);
+                const heart = container.querySelector(`.hg-heart[data-i="${wrong - 1}"]`);
+                if (heart) { heart.textContent = '💔'; heart.classList.add('broken'); }
+            }
+            if (wrong >= HANGMAN_MAX_WRONG) { finishWord(false, wrong); return; }
+            if (letters.every(l2 => guessed.has(l2))) { finishWord(true, wrong); return; }
         }
 
         function finishWord(won, wrongCount) {
             solved += won ? 1 : 0;
             speak(word);
             container.innerHTML = `
-                <div class="hangman-panel">
+                <div class="hangman-panel${won ? '' : ' hg-lose'}">
                     ${hangmanSvg(wrongCount)}
-                    <div class="hangman-result">
+                    <div class="hangman-result hg-confetti-wrap">
                         <h3>${won ? '🎉 Correct!' : '💀 He got hanged!'}</h3>
+                        ${won ? hangmanConfetti() : ''}
                         ${img ? `<img class="hangman-result-img" src="${esc(img)}" alt="">` : ''}
                         <p>The word was <strong>${esc(word.toUpperCase())}</strong></p>
                         <button type="button" class="restart-btn" id="hgNext">${idx + 1 < words.length ? 'Next word' : 'See results'}</button>
@@ -485,8 +564,6 @@ function startHangmanGame(container, words, topic) {
             `;
             container.querySelector('#hgNext').addEventListener('click', () => { idx++; renderWord(); });
         }
-
-        draw();
     }
 
     function renderComplete() {
@@ -691,6 +768,125 @@ function startMemoryGame(container, vocabList, useImages) {
     start();
 }
 
+function startWhoAmIGame(container, words, topic) {
+    if (!words || !words.length) {
+        container.innerHTML = `<div class="hangman-panel"><p>No riddles available for this lesson.</p></div>`;
+        return;
+    }
+    let idx = 0;
+    let solved = 0;
+
+    function keyBtn(l) {
+        return `<button type="button" class="letter-btn" data-l="${l}">${l}</button>`;
+    }
+
+    function renderWord() {
+        if (idx >= words.length) { renderComplete(); return; }
+        const { word, hints, img } = words[idx];
+        const letters = word.toUpperCase().split('');
+        const guessed = new Set();
+        let wrong = 0;
+        let revealedHints = 0;
+
+        const tiles = letters.map((l, i) => `<div class="hg-tile" data-i="${i}"></div>`).join('');
+        const hintBtns = hints.map((h, i) => `
+            <div class="whoami-hint" data-i="${i}">
+                <button type="button" class="whoami-hint-btn" data-i="${i}" ${i === 0 ? '' : 'disabled'}>🔍 Reveal Hint ${i + 1}</button>
+            </div>
+        `).join('');
+        container.innerHTML = `
+            <div class="hangman-panel">
+                <div class="whoami-header">
+                    <div class="whoami-question">❓ WHO AM I? ❓</div>
+                    <div class="hangman-pill">${esc(topic)}</div>
+                    <div class="hangman-pill">Riddle ${idx + 1} of ${words.length}</div>
+                </div>
+                <div class="hangman-layout">
+                    <div class="hangman-left">
+                        <div class="whoami-avatar">🕵️</div>
+                        <div class="hangman-word-tiles">${tiles}</div>
+                        <div class="whoami-hints" id="whHints">${hintBtns}</div>
+                        <button type="button" class="whoami-giveup-btn" id="whGiveup">🏳️ Reveal the answer</button>
+                    </div>
+                    <div class="hangman-alphabet" id="whAlpha">${HANGMAN_ALPHABET.map(keyBtn).join('')}</div>
+                </div>
+            </div>
+        `;
+        const alphaEl = container.querySelector('#whAlpha');
+        const hintsEl = container.querySelector('#whHints');
+
+        hintsEl.addEventListener('click', e => {
+            const btn = e.target.closest('.whoami-hint-btn');
+            if (!btn || btn.disabled) return;
+            const i = parseInt(btn.dataset.i, 10);
+            const wrap = hintsEl.querySelector(`.whoami-hint[data-i="${i}"]`);
+            wrap.innerHTML = `<div class="whoami-hint-card"><span class="whoami-hint-num">Hint ${i + 1}</span>${esc(hints[i].en)}</div>`;
+            revealedHints = i + 1;
+            const next = hintsEl.querySelector(`.whoami-hint-btn[data-i="${i + 1}"]`);
+            if (next) next.disabled = false;
+        });
+
+        container.querySelector('#whGiveup').addEventListener('click', () => finishWord(false, wrong));
+
+        alphaEl.addEventListener('click', e => {
+            const btn = e.target.closest('.letter-btn');
+            if (btn && !btn.disabled) onLetterClick(btn.dataset.l);
+        });
+
+        function onLetterClick(l) {
+            guessed.add(l);
+            const btn = alphaEl.querySelector(`.letter-btn[data-l="${l}"]`);
+            const isCorrect = letters.includes(l);
+            btn.disabled = true;
+            btn.classList.add(isCorrect ? 'correct' : 'wrong');
+            if (isCorrect) {
+                letters.forEach((ltr, i) => {
+                    if (ltr === l) {
+                        const tile = container.querySelector(`.hg-tile[data-i="${i}"]`);
+                        tile.textContent = l;
+                        tile.classList.add('filled');
+                    }
+                });
+            } else {
+                wrong++;
+            }
+            if (letters.every(l2 => guessed.has(l2))) finishWord(true, wrong);
+        }
+
+        function finishWord(won, wrongCount) {
+            solved += won ? 1 : 0;
+            speak(word);
+            container.innerHTML = `
+                <div class="hangman-panel">
+                    <div class="hangman-result hg-confetti-wrap">
+                        <h3>${won ? '🎉 You found them!' : '🔍 Here’s who it was'}</h3>
+                        ${won ? hangmanConfetti() : ''}
+                        ${img ? `<img class="hangman-result-img" src="${esc(img)}" alt="">` : ''}
+                        <p>I am <strong>${esc(word.toUpperCase())}</strong></p>
+                        <button type="button" class="restart-btn" id="whNext">${idx + 1 < words.length ? 'Next riddle' : 'See results'}</button>
+                    </div>
+                </div>
+            `;
+            container.querySelector('#whNext').addEventListener('click', () => { idx++; renderWord(); });
+        }
+    }
+
+    function renderComplete() {
+        container.innerHTML = `
+            <div class="hangman-panel">
+                <div class="hangman-result">
+                    <h3>🏁 Finished!</h3>
+                    <p>${solved} of ${words.length} riddles solved.</p>
+                    <button type="button" class="restart-btn" id="whRestart">Play again</button>
+                </div>
+            </div>
+        `;
+        container.querySelector('#whRestart').addEventListener('click', () => { idx = 0; solved = 0; renderWord(); });
+    }
+
+    renderWord();
+}
+
 document.addEventListener('click', e => {
     const speakOne = e.target.closest('.speak-btn');
     if (speakOne) {
@@ -704,6 +900,8 @@ if (LESSON.type === 'hangman') {
     startHangmanGame(mount, LESSON.hangman, LESSON.topic);
 } else if (LESSON.type === 'memory') {
     startMemoryGame(mount, LESSON.vocab, LESSON.memoryUseImages);
+} else if (LESSON.type === 'whoami') {
+    startWhoAmIGame(mount, LESSON.whoami, LESSON.topic);
 } else {
     startMatchGame(mount, LESSON.vocab);
 }
