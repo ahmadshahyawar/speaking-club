@@ -7,9 +7,9 @@ require_once __DIR__ . '/../includes/quicktranslate.php';
 header('Content-Type: application/json');
 
 $word = trim((string)($_GET['word'] ?? ''));
-if ($word === '' || mb_strlen($word) > 40) {
+if ($word === '' || mb_strlen($word) > 100) {
     http_response_code(400);
-    echo json_encode(['error' => 'Please provide a single word (up to 40 characters).']);
+    echo json_encode(['error' => 'Please provide a word or short phrase (up to 100 characters).']);
     exit;
 }
 

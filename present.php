@@ -185,32 +185,31 @@ $data = [
     }
     .game-menu-list a:hover { background: rgba(0,0,0,0.8); }
 
-    /* Quick EN -> RU/KZ lookup, for clarifying a word on the fly mid-class. */
-    .translate-menu { position: fixed; top: 112px; right: 26px; z-index: 21; }
-    .translate-panel {
-        position: absolute; top: calc(100% + 8px); right: 0; width: 320px;
-        background: rgba(20,22,34,0.92); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.25);
-        border-radius: 16px; padding: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
-        opacity: 0; transform: translateY(-8px) scale(0.95); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+    /* Live EN -> RU/KZ translation, for clarifying a word on the fly mid-class.
+       An on/off switch (like the TTS one) rather than a click-to-open menu -
+       once switched on, the input box stays put on screen and translates as
+       you type, Google Translate style: no submit button, no history list. */
+    .live-translate {
+        position: fixed; top: 112px; right: 26px; z-index: 21; display: flex; flex-direction: column;
+        align-items: flex-end; gap: 8px;
     }
-    .translate-panel.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
-    .translate-form { display: flex; gap: 8px; margin-bottom: 8px; }
-    .translate-form input {
-        flex: 1 1 auto; min-width: 0; padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.3);
-        background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em;
+    .live-translate-toggle {
+        display: flex; align-items: center; gap: 8px;
+        background: rgba(0,0,0,0.35); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.3);
+        color: #fff; padding: 7px 14px 7px 12px; border-radius: 999px; font-size: 0.85em; font-weight: 700;
     }
-    .translate-form input::placeholder { color: rgba(255,255,255,0.5); }
-    .translate-form button {
-        background: #5b5fef; color: #fff; border: none; padding: 9px 16px; border-radius: 999px;
-        font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.85em; flex: 0 0 auto;
+    .live-translate-box {
+        width: 260px; background: rgba(20,22,34,0.92); backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.25); border-radius: 16px; padding: 12px;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.5);
     }
-    .translate-form button:hover { background: #4b4fdf; }
-    .translate-status { min-height: 1.2em; font-size: 0.78em; opacity: 0.75; margin-bottom: 6px; }
-    .translate-table-wrap { max-height: 240px; overflow-y: auto; }
-    .translate-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
-    .translate-table th { text-align: left; padding: 6px 8px; opacity: 0.6; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.2); }
-    .translate-table td { padding: 7px 8px; border-bottom: 1px solid rgba(255,255,255,0.1); vertical-align: top; }
-    .translate-table tr:first-child td { font-weight: 700; }
+    .live-translate-box input {
+        width: 100%; padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.3);
+        background: rgba(255,255,255,0.1); color: #fff; font-family: inherit; font-size: 0.9em; margin-bottom: 8px;
+    }
+    .live-translate-box input::placeholder { color: rgba(255,255,255,0.5); }
+    .live-translate-line { font-size: 0.9em; padding: 4px 0; display: flex; gap: 8px; }
+    .lt-lang { font-weight: 800; opacity: 0.6; flex: 0 0 auto; width: 24px; }
 
     /* Paired questions */
     .q-pair { display: flex; flex-direction: column; gap: 20px; }
@@ -250,20 +249,18 @@ $data = [
     </div>
 </div>
 
-<div class="translate-menu" id="translateMenu">
-    <button type="button" class="game-menu-toggle" id="translateMenuToggle">🔤 Translate</button>
-    <div class="translate-panel" id="translatePanel">
-        <form id="translateForm" class="translate-form">
-            <input type="text" id="translateInput" placeholder="Type an English word..." autocomplete="off">
-            <button type="submit">Go</button>
-        </form>
-        <div id="translateStatus" class="translate-status"></div>
-        <div class="translate-table-wrap">
-            <table class="translate-table" id="translateTable">
-                <thead><tr><th>EN</th><th>RU</th><th>KZ</th></tr></thead>
-                <tbody id="translateTableBody"></tbody>
-            </table>
-        </div>
+<div class="live-translate" id="liveTranslate">
+    <div class="live-translate-toggle">
+        <span>🔤 Live Translate</span>
+        <label class="switch">
+            <input type="checkbox" id="liveTranslateCheckbox">
+            <span class="slider"></span>
+        </label>
+    </div>
+    <div class="live-translate-box" id="liveTranslateBox" hidden>
+        <input type="text" id="liveTranslateInput" placeholder="Type in English..." autocomplete="off">
+        <div class="live-translate-line"><span class="lt-lang">RU</span><span id="liveTranslateRu"></span></div>
+        <div class="live-translate-line"><span class="lt-lang">KZ</span><span id="liveTranslateKz"></span></div>
     </div>
 </div>
 
@@ -425,46 +422,47 @@ document.addEventListener('click', e => {
     }
 });
 
-const translateMenuToggle = document.getElementById('translateMenuToggle');
-const translatePanel = document.getElementById('translatePanel');
-const translateForm = document.getElementById('translateForm');
-const translateInput = document.getElementById('translateInput');
-const translateStatus = document.getElementById('translateStatus');
-const translateTableBody = document.getElementById('translateTableBody');
+const liveTranslateCheckbox = document.getElementById('liveTranslateCheckbox');
+const liveTranslateBox = document.getElementById('liveTranslateBox');
+const liveTranslateInput = document.getElementById('liveTranslateInput');
+const liveTranslateRu = document.getElementById('liveTranslateRu');
+const liveTranslateKz = document.getElementById('liveTranslateKz');
 
-translateMenuToggle.addEventListener('click', e => {
-    e.stopPropagation();
-    translateMenuToggle.classList.toggle('open');
-    translatePanel.classList.toggle('open');
-    if (translatePanel.classList.contains('open')) translateInput.focus();
+const ltOn = localStorage.getItem('scLiveTranslate') === 'on';
+liveTranslateCheckbox.checked = ltOn;
+liveTranslateBox.hidden = !ltOn;
+
+liveTranslateCheckbox.addEventListener('change', () => {
+    liveTranslateBox.hidden = !liveTranslateCheckbox.checked;
+    localStorage.setItem('scLiveTranslate', liveTranslateCheckbox.checked ? 'on' : 'off');
+    if (liveTranslateCheckbox.checked) liveTranslateInput.focus();
 });
-document.addEventListener('click', e => {
-    if (!e.target.closest('#translateMenu')) {
-        translateMenuToggle.classList.remove('open');
-        translatePanel.classList.remove('open');
+
+let ltTimer = null;
+let ltRequestSeq = 0;
+liveTranslateInput.addEventListener('input', () => {
+    const text = liveTranslateInput.value.trim();
+    clearTimeout(ltTimer);
+    if (!text) {
+        liveTranslateRu.textContent = '';
+        liveTranslateKz.textContent = '';
+        return;
     }
-});
-
-translateForm.addEventListener('submit', e => {
-    e.preventDefault();
-    const word = translateInput.value.trim();
-    if (!word) return;
-    translateStatus.textContent = 'Looking up...';
-    fetch('api/quick_translate.php?word=' + encodeURIComponent(word))
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) {
-                translateStatus.textContent = data.error;
-                return;
-            }
-            translateStatus.textContent = data.source === 'lesson' ? 'From this app\'s own lessons' : 'Auto-translated';
-            const row = document.createElement('tr');
-            row.innerHTML = `<td>${esc(data.en)}</td><td>${esc(data.ru)}</td><td>${esc(data.kz)}</td>`;
-            translateTableBody.insertBefore(row, translateTableBody.firstChild);
-            translateInput.value = '';
-            translateInput.focus();
-        })
-        .catch(() => { translateStatus.textContent = 'Lookup failed - check your connection.'; });
+    const seq = ++ltRequestSeq;
+    ltTimer = setTimeout(() => {
+        fetch('api/quick_translate.php?word=' + encodeURIComponent(text))
+            .then(r => r.json())
+            .then(data => {
+                if (seq !== ltRequestSeq) return; // a newer keystroke already superseded this request
+                liveTranslateRu.textContent = data.error ? '' : data.ru;
+                liveTranslateKz.textContent = data.error ? '' : data.kz;
+            })
+            .catch(() => {
+                if (seq !== ltRequestSeq) return;
+                liveTranslateRu.textContent = '';
+                liveTranslateKz.textContent = '';
+            });
+    }, 350);
 });
 
 const track = document.getElementById('sliderTrack');
