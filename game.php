@@ -287,6 +287,7 @@ $typeLabel = $typeLabels[$type];
         line-height: 1.4; text-align: left; animation: whoamiHintIn 0.35s ease both;
     }
     .whoami-hint-num { font-weight: 800; color: #5b5fef; margin-right: 4px; }
+    .whoami-hint-tr { margin-top: 6px; font-size: 0.9em; opacity: 0.85; }
     .whoami-giveup-btn {
         margin-top: 14px; background: none; border: 1px solid rgba(28,33,48,0.3); color: #1c2130;
         padding: 6px 14px; border-radius: 999px; font-size: 0.75em; cursor: pointer; font-family: inherit; opacity: 0.7;
@@ -820,7 +821,13 @@ function startWhoAmIGame(container, words, topic) {
             if (!btn || btn.disabled) return;
             const i = parseInt(btn.dataset.i, 10);
             const wrap = hintsEl.querySelector(`.whoami-hint[data-i="${i}"]`);
-            wrap.innerHTML = `<div class="whoami-hint-card"><span class="whoami-hint-num">Hint ${i + 1}</span>${esc(hints[i].en)}</div>`;
+            wrap.innerHTML = `
+                <div class="whoami-hint-card">
+                    <div><span class="whoami-hint-num">Hint ${i + 1}</span>${esc(hints[i].en)}</div>
+                    <div class="whoami-hint-tr"><strong>RU:</strong> ${esc(hints[i].ru)}</div>
+                    <div class="whoami-hint-tr"><strong>KZ:</strong> ${esc(hints[i].kz)}</div>
+                </div>
+            `;
             revealedHints = i + 1;
             const next = hintsEl.querySelector(`.whoami-hint-btn[data-i="${i + 1}"]`);
             if (next) next.disabled = false;
