@@ -1,25 +1,27 @@
 <?php
 declare(strict_types=1);
+// One-off: fetches photos for any Who Am I? profession word that doesn't
+// already have one in vocab_images. Single-threaded (the word count here is
+// small), reuses the same Pexels search + 19s pacing as the multi-key script.
 
 $options = getopt('', ['key:', 'shard:']);
-if (!isset($options['key'], $options['shard']) || !preg_match('/^(\d+)\/(\d+)$/', $options['shard'], $m)) {
-    fwrite(STDERR, "Usage: php fetch_vocab_images_multi.php --key=PEXELS_KEY --shard=INDEX/TOTAL\n");
+if (!isset($options['key'])) {
+    fwrite(STDERR, "Usage: php fetch_whoami_images.php --key=PEXELS_KEY [--shard=INDEX/TOTAL]\n");
     exit(1);
 }
 $apiKey = $options['key'];
-$shardIndex = (int)$m[1];
-$shardTotal = (int)$m[2];
+$shardIndex = 0;
+$shardTotal = 1;
+if (isset($options['shard']) && preg_match('/^(\d+)\/(\d+)$/', $options['shard'], $m)) {
+    $shardIndex = (int)$m[1];
+    $shardTotal = (int)$m[2];
+}
 
 $cfg = require '/home/u856637812/config/speaking_club_config.php';
 $pdo = new PDO("mysql:host={$cfg['db_host']};dbname={$cfg['db_name']};charset=utf8mb4", $cfg['db_user'], $cfg['db_pass'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
 $webRoot = '/home/u856637812/domains/omarshoaibyawar.com/public_html/speakingclub';
 $imageDir = $webRoot . '/assets/vocab_images';
-if (!is_dir($imageDir)) {
-    mkdir($imageDir, 0755, true);
-}
-
-require_once $webRoot . '/includes/hangman.php';
 require_once $webRoot . '/includes/whoami.php';
 
 function slugify(string $word): string {
@@ -28,38 +30,20 @@ function slugify(string $word): string {
     return trim($slug, '-') ?: 'word';
 }
 
-function add_word(array &$words, string $original): void {
-    $original = trim($original);
-    $key = mb_strtolower($original);
-    if ($key === '' || isset($words[$key])) return;
-    $words[$key] = $original;
-}
-
 $words = [];
-
-// Pre-intermediate lessons' own vocabulary only, per request.
-$stmt = $pdo->prepare("SELECT vocab FROM lessons WHERE level = 'pre-intermediate'");
-$stmt->execute();
-foreach ($stmt as $row) {
-    $vocab = json_decode($row['vocab'], true);
-    if (!is_array($vocab)) continue;
-    foreach ($vocab as $v) {
-        if (isset($v['en'])) add_word($words, $v['en']);
+foreach (['beginner', 'elementary', 'pre-intermediate', 'intermediate'] as $lvl) {
+    foreach (build_whoami_bank($lvl) as $entry) {
+        $key = mb_strtolower(trim($entry['word']));
+        $words[$key] = $entry['word'];
     }
 }
 
-// The Hangman moderate bank (shared by pre-intermediate/intermediate - can't
-// be split further) and the pre-intermediate Who Am I? riddle answers.
-foreach (array_keys(build_hangman_clues_moderate()) as $word) add_word($words, $word);
-foreach (build_whoami_bank('pre-intermediate') as $entry) add_word($words, $entry['word']);
-
-// Skip words already cached.
 $cached = [];
 foreach ($pdo->query("SELECT word FROM vocab_images") as $row) {
     $cached[$row['word']] = true;
 }
 
-// Deterministic shard assignment so concurrent workers never duplicate work.
+$allMissing = array_filter(array_keys($words), fn($k) => !isset($cached[$k]));
 $todo = [];
 foreach ($words as $key => $original) {
     if (isset($cached[$key])) continue;
@@ -68,7 +52,7 @@ foreach ($words as $key => $original) {
 }
 
 $total = count($todo);
-fwrite(STDOUT, "[shard $shardIndex/$shardTotal] Total unique words: " . count($words) . ", already cached: " . count($cached) . ", this shard to fetch: $total\n");
+fwrite(STDOUT, "[shard $shardIndex/$shardTotal] Total Who Am I words: " . count($words) . ", missing overall: " . count($allMissing) . ", this shard to fetch: $total\n");
 flush();
 
 $insert = $pdo->prepare("INSERT INTO vocab_images (word, image_path, credit_name, credit_url) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE image_path = VALUES(image_path)");
@@ -82,7 +66,9 @@ foreach ($todo as $key => $original) {
     $filepath = $imageDir . '/' . $filename;
     $relPath = 'assets/vocab_images/' . $filename;
 
-    $query = urlencode($original);
+    // "profession" biases Pexels toward a person doing the job, not a random
+    // unrelated object that happens to share the word.
+    $query = urlencode($original . ' profession');
     $url = "https://api.pexels.com/v1/search?query={$query}&per_page=1&orientation=square";
 
     $ch = curl_init($url);
@@ -96,7 +82,7 @@ foreach ($todo as $key => $original) {
     curl_close($ch);
 
     if ($httpCode === 429) {
-        fwrite(STDOUT, "[shard $shardIndex][$done/$total] Rate limited (429). Sleeping 65 minutes...\n");
+        fwrite(STDOUT, "[$done/$total] Rate limited (429). Sleeping 65 minutes...\n");
         flush();
         sleep(65 * 60);
         $ch = curl_init($url);
@@ -111,7 +97,7 @@ foreach ($todo as $key => $original) {
     }
 
     if ($httpCode !== 200 || !$resp) {
-        fwrite(STDOUT, "[shard $shardIndex][$done/$total] FAILED search for '$original' (HTTP $httpCode)\n");
+        fwrite(STDOUT, "[$done/$total] FAILED search for '$original' (HTTP $httpCode)\n");
         flush();
         $failed++;
         usleep(300000);
@@ -121,7 +107,7 @@ foreach ($todo as $key => $original) {
     $data = json_decode($resp, true);
     $photo = $data['photos'][0] ?? null;
     if (!$photo) {
-        fwrite(STDOUT, "[shard $shardIndex][$done/$total] No photo found for '$original'\n");
+        fwrite(STDOUT, "[$done/$total] No photo found for '$original'\n");
         flush();
         $failed++;
         usleep(300000);
@@ -133,7 +119,7 @@ foreach ($todo as $key => $original) {
     $photographerUrl = $photo['photographer_url'] ?? null;
 
     if (!$imageUrl) {
-        fwrite(STDOUT, "[shard $shardIndex][$done/$total] No image URL for '$original'\n");
+        fwrite(STDOUT, "[$done/$total] No image URL for '$original'\n");
         flush();
         $failed++;
         continue;
@@ -149,7 +135,7 @@ foreach ($todo as $key => $original) {
     curl_close($imgCh);
 
     if ($imgHttpCode !== 200 || !$imgData) {
-        fwrite(STDOUT, "[shard $shardIndex][$done/$total] FAILED download for '$original'\n");
+        fwrite(STDOUT, "[$done/$total] FAILED download for '$original'\n");
         flush();
         $failed++;
         usleep(300000);
@@ -159,11 +145,10 @@ foreach ($todo as $key => $original) {
     file_put_contents($filepath, $imgData);
     $insert->execute([$key, $relPath, $photographer, $photographerUrl]);
 
-    fwrite(STDOUT, "[shard $shardIndex][$done/$total] OK: $original -> $relPath\n");
+    fwrite(STDOUT, "[$done/$total] OK: $original -> $relPath\n");
     flush();
 
-    // Pace requests: free tier is 200/hour = one every 18s; use 19s to stay safely under.
     sleep(19);
 }
 
-fwrite(STDOUT, "[shard $shardIndex] Done. Fetched: " . ($done - $failed) . ", Failed: $failed\n");
+fwrite(STDOUT, "Done. Fetched: " . ($done - $failed) . ", Failed: $failed\n");
