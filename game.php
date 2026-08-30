@@ -257,6 +257,12 @@ $typeLabel = $typeLabels[$type];
     .mem-tr { text-align: center; font-size: 0.85em; line-height: 1.35; color: #1c2130; padding: 4px; }
     .mem-tr div:first-child { font-weight: 700; margin-bottom: 3px; }
     .mem-sparkle { position: absolute; inset: -10px; pointer-events: none; display: flex; align-items: center; justify-content: center; font-size: 1.4em; animation: memSparkle 0.6s ease; }
+    @keyframes memXIn { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: scale(1); } }
+    .mem-x {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        font-size: 2.2em; font-weight: 900; color: #ef4444; text-shadow: 0 2px 10px rgba(0,0,0,0.6);
+        pointer-events: none; animation: memXIn 0.25s ease;
+    }
     .memory-result { text-align: center; color: #1c2130; }
     .memory-result h3 { font-size: 1.4em; margin-bottom: 6px; }
     @media (max-width: 900px) {
@@ -654,6 +660,15 @@ function startMemoryGame(container, vocabList, useImages) {
         } else if (!card.isMatched && sparkle) {
             sparkle.remove();
         }
+        let xMark = btn.querySelector('.mem-x');
+        if (card.isWrong && !xMark) {
+            xMark = document.createElement('div');
+            xMark.className = 'mem-x';
+            xMark.textContent = '✗';
+            btn.appendChild(xMark);
+        } else if (!card.isWrong && xMark) {
+            xMark.remove();
+        }
     }
 
     function updateStats() {
@@ -750,8 +765,8 @@ function startMemoryGame(container, vocabList, useImages) {
         timerHandle = setInterval(tick, 1000);
     }
 
-    // Flips every unmatched card face-up for a couple of seconds so students
-    // can study the board before playing, then flips them back down.
+    // Flips every unmatched card face-up for 6 seconds so students can
+    // study the board before playing, then flips them back down.
     function peek() {
         if (lock) return;
         lock = true;
@@ -763,7 +778,7 @@ function startMemoryGame(container, vocabList, useImages) {
             toReveal.forEach(c => { c.isFlipped = false; updateCardEl(c.pos); });
             lock = false;
             if (peekBtn) peekBtn.disabled = false;
-        }, 2000);
+        }, 6000);
     }
 
     start();
