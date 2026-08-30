@@ -20,7 +20,7 @@ $bgStmt = db()->prepare('SELECT image_path FROM lesson_backgrounds WHERE lesson_
 $bgStmt->execute([$id]);
 $lessonBackground = $bgStmt->fetchColumn() ?: null;
 
-$isPictureLevel = in_array($lesson['level'], ['beginner', 'elementary'], true);
+$isPictureLevel = in_array($lesson['level'], ['beginner', 'elementary', 'pre-intermediate'], true);
 $vocab = json_decode($lesson['vocab'], true);
 $warmup = json_decode($lesson['warmup'], true);
 $questions = json_decode($lesson['questions'], true);
