@@ -16,6 +16,10 @@ if (!$lesson) {
     die('Lesson not found.');
 }
 
+$bgStmt = db()->prepare('SELECT image_path FROM lesson_backgrounds WHERE lesson_id = ?');
+$bgStmt->execute([$id]);
+$lessonBackground = $bgStmt->fetchColumn() ?: null;
+
 $isPictureLevel = in_array($lesson['level'], ['beginner', 'elementary'], true);
 $vocab = json_decode($lesson['vocab'], true);
 $warmup = json_decode($lesson['warmup'], true);
@@ -222,7 +226,11 @@ $data = [
 </style>
 </head>
 <body>
+<?php if ($lessonBackground): ?>
+<div class="bg-stage bg-photo" style="background-image:url('<?= htmlspecialchars($lessonBackground, ENT_QUOTES, 'UTF-8') ?>')"></div>
+<?php else: ?>
 <div class="bg-stage bg-level-<?= htmlspecialchars($data['level'], ENT_QUOTES, 'UTF-8') ?>"></div>
+<?php endif; ?>
 
 <div class="topbar">
     <div class="title-block">
